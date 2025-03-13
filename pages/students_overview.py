@@ -9,7 +9,7 @@ from tabulate import tabulate
 from dash.dependencies import Input, Output
 from services.api import df_tableenrolx, lookup_dict
 
-dash.register_page(__name__, path="/students", name="Students")
+dash.register_page(__name__, path="/students/overview", name="Students Overview")
 
 # Filters
 # Extract survey years from lookup dictionary (assuming it contains a "surveyYears" key)
@@ -27,7 +27,7 @@ default_year = max([int(item['C']) for item in survey_years], default=2024)
 def students_layout():
     return dbc.Container([
         dbc.Row([
-            dbc.Col(html.H3("Students Dashboard"), width=12, className="m-1"),
+            dbc.Col(html.H1("Students Overview"), width=12, className="m-1"),
         ]),
         dbc.Row([
             dbc.Col(
@@ -234,8 +234,5 @@ def update_dashboard(selected_year):
     table_data = df_pivot_table.to_dict("records")
 
     return fig_island_gender,  fig_district_gender, fig_region_gender, fig_AuthorityGovt_gender, fig_Authority_gender, table_data, table_columns_table
-
-    # return (fig_island_gender, fig_district_gender, fig_region_gender, 
-    #         fig_AuthorityGovt_gender, fig_Authority_gender, table_data, table_columns_table)
 
 layout = students_layout()
