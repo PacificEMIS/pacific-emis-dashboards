@@ -2,16 +2,48 @@ import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 from dash import dash_table
+import pandas as pd
+import plotly.express as px
 
 # Import data and figures from the API module
-from services.api import df_enrol, df_yearly, df_gender, auth_status, data_status, fig_enrol, fig_gender, fig_yearly
+from services.api import df_enrol, auth_status, data_status
 
 # Register this page as the Trends page
-dash.register_page(__name__, path="/samples", name="Samples")
+dash.register_page(__name__, path="/students/samples", name="Students Samples")
+
+# --- Data Processing and Visualization ---
+if not df_enrol.empty:
+    df_grouped = df_enrol.groupby("ClassLevel")["Enrol"].sum().reset_index()
+    fig_enrol = px.bar(
+        df_grouped, x="ClassLevel", y="Enrol",
+        title="Total Enrollment by Class Level",
+        labels={"ClassLevel": "Class Level", "Enrol": "Total Enrollment"},
+        color="ClassLevel"
+    )
+
+    df_gender = df_enrol.groupby(["ClassLevel", "GenderCode"])["Enrol"].sum().reset_index()
+    fig_gender = px.bar(
+        df_gender, x="ClassLevel", y="Enrol", color="GenderCode",
+        barmode="group", title="Enrollment by Class Level and Gender",
+        labels={"ClassLevel": "Class Level", "Enrol": "Total Enrollment", "GenderCode": "Gender"}
+    )
+
+    if "SurveyYear" in df_enrol and df_enrol["SurveyYear"].nunique() > 1:
+        recent_years = sorted(df_enrol["SurveyYear"].unique(), reverse=True)[:5]
+        df_yearly = df_enrol[df_enrol["SurveyYear"].isin(recent_years)]
+        df_yearly = df_yearly.groupby(["SurveyYear", "ClassLevel"])["Enrol"].sum().reset_index()
+        fig_yearly = px.line(
+            df_yearly, x="SurveyYear", y="Enrol", color="ClassLevel",
+            title="Enrollment Trends Over Time (Last 5 Years)",
+            labels={"SurveyYear": "Year", "Enrol": "Total Enrollment", "ClassLevel": "Class Level"}
+        )
+    else:
+        df_yearly = pd.DataFrame()
+        fig_yearly = None
 
 layout = dbc.Container([
     dbc.Row([
-        dbc.Col(html.H3("Sample Dashboard Components")),
+        dbc.Col(html.H1("Students Samples (Experiment here)")),
     ], className="m-1"),
 
     dbc.Row([
