@@ -6,7 +6,13 @@ import pandas as pd
 import plotly.express as px
 from pprint import pprint
 
-from config import USERNAME, PASSWORD, BASE_URL, LOGIN_URL, LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, TEACHERCOUNT_URL, LOOKUPS_URL_CACHE_FILE, ENROL_URL_CACHE_FILE, TABLEENROLX_URL_CACHE_FILE, TEACHERCOUNT_URL_CACHE_FILE
+from config import (
+    DEBUG, USERNAME, PASSWORD, BASE_URL, LOGIN_URL, 
+    LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, 
+    TEACHERCOUNT_URL, TEACHERCPDX_URL, 
+    LOOKUPS_URL_CACHE_FILE, ENROL_URL_CACHE_FILE, TABLEENROLX_URL_CACHE_FILE, 
+    TEACHERCOUNT_URL_CACHE_FILE, TEACHERCPDX_URL_CACHE_FILE
+)
 
 # Global variables
 df_enrol = pd.DataFrame()
@@ -15,6 +21,7 @@ lookup_dict = {}  # <-- ⚡ Lookup values stored in a dictionary instead of Data
 
 auth_status = "❌ Not authenticated"
 data_status = "❌ No data loaded"
+verify_ssl = not DEBUG
 
 def get_auth_token():
     """
@@ -44,12 +51,15 @@ def get_auth_token():
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json"
     }
-    response = requests.post(LOGIN_URL, data=payload, headers=headers)
-    if response.status_code == 200:
-        token_data = response.json()
-        return token_data.get("access_token"), "✅ Authentication Successful!"
-    else:
-        return None, "❌ Authentication Failed! Check credentials."
+    try:
+        response = requests.post(LOGIN_URL, data=payload, headers=headers, verify=verify_ssl)
+        if response.status_code == 200:
+            token_data = response.json()
+            return token_data.get("access_token"), "✅ Authentication Successful!"
+        else:
+            return None, f"❌ Authentication Failed! Status {response.status_code}"
+    except Exception as e:
+        return None, f"❌ Error: {str(e)}"
 
 def fetch_data(url, is_lookup=False, cache_file=None):
     """
@@ -104,7 +114,7 @@ def fetch_data(url, is_lookup=False, cache_file=None):
         "Accept": "application/json",
         "Origin": f"https://{BASE_URL}"
     }
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, verify=verify_ssl)
     logging.debug(f"Response Code: {response.status_code}")
     logging.debug(f"Response Text: {response.text}")
 
@@ -140,6 +150,8 @@ if not df_teachercount.empty:
     df_teachercount['NumTeachersNA'] = pd.to_numeric(df_teachercount['NumTeachersNA'], errors='coerce')
     # Create a total teacher count column (if needed for other charts)
     df_teachercount['TotalTeachers'] = df_teachercount['NumTeachersM'].fillna(0) + df_teachercount['NumTeachersF'].fillna(0) + df_teachercount['NumTeachersNA'].fillna(0)
+
+df_teachercpdx = fetch_data(TEACHERCPDX_URL, is_lookup=False, cache_file=TEACHERCPDX_URL_CACHE_FILE)
 
 ###############################################################################
 # Setup lookups

@@ -6,7 +6,6 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 from tabulate import tabulate
-from dash.dependencies import Input, Output
 from services.api import df_tableenrolx, lookup_dict
 
 dash.register_page(__name__, path="/students/overview", name="Students Overview")
