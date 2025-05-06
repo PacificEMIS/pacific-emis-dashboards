@@ -9,9 +9,6 @@ import pandas as pd
 # Import the CPD data
 from services.api import (
     df_teachercpdx,
-    district_lookup,
-    region_lookup,
-    authorities_lookup,
     vocab_district,
     vocab_region,
     vocab_authority,
@@ -189,7 +186,7 @@ def update_dashboard(selected_year):
         filtered.groupby(['Region','Gender']).sum(numeric_only=True).reset_index(),
         x='Region', y='Attendants',        
         color="Gender",
-        title="CPD Attendants by Region and Gender",
+        title=f"CPD Attendants by {vocab_region} and Gender for {selected_year}",
         labels={"Attendants": "Number of Attendants"}
     )
 
@@ -203,7 +200,7 @@ def update_dashboard(selected_year):
          color_discrete_sequence=px.colors.qualitative.D3, # For some reason pie requires an override...
          names="AuthorityGroup",
          values="Attendants",
-         title=f"CPD Attendants by {vocab_authoritygovt} for {selected_year}",
+         title=f"CPD Attendants by {vocab_authoritygovt} and Gender for {selected_year}",
          labels={"AuthorityGroup": vocab_authoritygovt, "Attendants": "Number of Attendants"}
     )
 
@@ -235,7 +232,7 @@ def update_dashboard(selected_year):
          color_discrete_sequence=px.colors.qualitative.D3, # For some reason pie requires an override...
          names="SchoolType",
          values="Attendants",
-         title=f"CPD Attendants Count by {vocab_schooltype} for {selected_year}",
+         title=f"CPD Attendants by {vocab_schooltype} and Gender for {selected_year}",
          labels={"SchoolType": vocab_schooltype, "Attendants": "Number of Attendants"}
     )
 
@@ -249,7 +246,7 @@ def update_dashboard(selected_year):
         x="Attendants",
         orientation='h',
         color='Gender',
-        title="CPD Attendants by Years of Teaching",
+        title="CPD Attendants by Years of Teaching by Gender for {selected_year}",
         labels={"Attendants": "Number of Attendants", "YearsTeaching": "Years Teaching"}
     )
 

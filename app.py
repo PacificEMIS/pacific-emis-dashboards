@@ -90,6 +90,7 @@ navbar = dbc.NavbarSimple(
                 dbc.DropdownMenuItem("Overview", href="/teachers/overview"),
                 dbc.DropdownMenuItem("Trends", href="/teachers/trends"),
                 dbc.DropdownMenuItem("CPD", href="/teachers/cpd"),
+                dbc.DropdownMenuItem("CPD Attendance", href="/teachers/cpd-attendance"),
                 #dbc.DropdownMenuItem("Samples", href="/teachers/samples"),
             ],
             nav=True,
