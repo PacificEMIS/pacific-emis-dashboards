@@ -4,13 +4,14 @@ from dash import dcc, html
 
 import dash_bootstrap_components as dbc
 
-from config import CONTEXT
+from config import DEBUG, CONTEXT
 
 app = dash.Dash(
     __name__, 
     use_pages=True, 
-    external_stylesheets=[dbc.themes.SANDSTONE]
+    external_stylesheets=[dbc.themes.SANDSTONE]    
 )
+app.config.suppress_callback_exceptions = True
 
 server = app.server  # Expose the underlying Flask instance
 
@@ -88,6 +89,8 @@ navbar = dbc.NavbarSimple(
             children=[
                 dbc.DropdownMenuItem("Overview", href="/teachers/overview"),
                 dbc.DropdownMenuItem("Trends", href="/teachers/trends"),
+                dbc.DropdownMenuItem("CPD", href="/teachers/cpd"),
+                dbc.DropdownMenuItem("CPD Attendance", href="/teachers/cpd-attendance"),
                 #dbc.DropdownMenuItem("Samples", href="/teachers/samples"),
             ],
             nav=True,
@@ -146,4 +149,4 @@ px.defaults.color_continuous_scale = px.colors.sequential.Cividis
 if __name__ == "__main__":
     os.environ["FLASK_ENV"] = "development"  # ✅ Enables Debug Mode
     os.environ["FLASK_RUN_EXTRA_FILES"] = "*.py"
-    app.run_server(debug=True, dev_tools_hot_reload=True)  # ✅ Restores auto-reload
+    app.run_server(debug=DEBUG, dev_tools_hot_reload=DEBUG)  # ✅ Restores auto-reload
