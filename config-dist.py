@@ -27,3 +27,10 @@ ENROL_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_enrol_data.json"
 TABLEENROLX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_tableenrolx_data.json"
 TEACHERCOUNT_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teachercount_data.json"
 TEACHERCPDX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teachercpdx_data.json"
+
+# Direct SQL server access configuration
+SQL_SERVER = os.getenv("SQL_SERVER", "SERVERNAME")
+SQL_DATABASE = os.getenv("SQL_DATABASE", "DBNAME")
+SQL_USER = os.getenv("SQL_USER", "user")
+SQL_PASSWORD = os.getenv("SQL_PASSWORD", "password")
+SQL_DRIVER = "ODBC Driver 18 for SQL Server"

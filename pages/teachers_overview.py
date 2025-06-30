@@ -84,7 +84,7 @@ def teachers_overview_layout():
 )
 def update_dashboard(selected_year):
     if selected_year is None:
-        return {}, {}, {}
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     
     # Filter data for the selected survey year
     filtered = df_teachercount[df_teachercount['SurveyYear'] == selected_year]    
