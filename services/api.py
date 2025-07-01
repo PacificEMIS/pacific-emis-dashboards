@@ -176,10 +176,18 @@ vocab_schooltype = vocab_lookup.get("School Type", "School Type")
 # Debugging logs
 ###############################################################################
 if True:  # Replace with a condition if needed
-    print("lookup_dict:")
-    pprint(dict(list(lookup_dict.items())[:3]))
+    print("lookup_dict keys preview:")
+    for k in list(lookup_dict.keys())[:3]:
+        values = lookup_dict[k]
+        print(f"  {k}: {len(values)} items")
+        if isinstance(values, list):
+            pprint(values[:2])  # Show first 2 entries only
+        else:
+            pprint(values)
+    #pprint(dict(list(lookup_dict.items())[:3]))
     print("authorityGovt lookups:", authoritygovts_lookup)
     print("df_enrol (head):", df_enrol.head())
     print("df_tableenrolx (head):", df_tableenrolx.head())
     print("df_teachercount (head):", df_teachercount.head())
     print("df_teachercount (info):", df_teachercount.info())
+    print("End of api.py debug output")

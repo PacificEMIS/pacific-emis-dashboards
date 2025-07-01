@@ -120,6 +120,16 @@ navbar = dbc.NavbarSimple(
         #     label="WASH Surveys",
         #     color="secondary"
         # ),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Annual Census", href="/audit/annual-census"),
+                #dbc.DropdownMenuItem("Samples", href="/audit/samples"),
+            ],
+            nav=True,
+            in_navbar=True,
+            label="Audit",
+            color="secondary"
+        ),
     ],
     brand=f"{CONTEXT.upper()} Dashboards",
     brand_href="/",
