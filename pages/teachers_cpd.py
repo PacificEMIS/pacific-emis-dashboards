@@ -78,7 +78,7 @@ def teachers_cpd_overview_layout():
 )
 def update_dashboard(selected_year):
     if selected_year is None:
-        return {}, {}, {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, {}, {}, {}
     
     # Filter the CPD dataset
     filtered = df_teachercpdx[df_teachercpdx['SurveyYear'] == selected_year]
