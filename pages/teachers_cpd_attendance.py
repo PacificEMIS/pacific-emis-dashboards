@@ -78,7 +78,7 @@ def teachers_cpd_attendance_layout():
 )
 def update_dashboard(selected_year):
     if selected_year is None:
-        return {}, {}, {}, {}, {}, {}, {}
+        return {}, {}, {}, {}, {}, {}, {}, {}
     
     # Filter the CPD dataset
     filtered = df_teachercpdx[df_teachercpdx['SurveyYear'] == selected_year]
@@ -104,7 +104,7 @@ def update_dashboard(selected_year):
         y="AverageAttendanceRate",
         color="Gender",
         barmode="group",  # side-by-side bars
-        title=f"CPD Average Attendance Rate by {vocab_district} and Gender in {selected_year}",
+        title=f"CPD Average Attendance Rate by {vocab_district} and Gender in {selected_year}",        
         labels={
             "District": vocab_district,
             "AverageAttendanceRate": "Average Attendance Rate",
@@ -114,7 +114,8 @@ def update_dashboard(selected_year):
 
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_district_gender.update_layout(
-        xaxis_tickangle=90
+        xaxis_tickangle=90,
+        title_font_size=12,
     )
     fig_cpd_district_gender.update_yaxes(
         range=[0, 1],     # forces 0% → 100%
@@ -143,6 +144,10 @@ def update_dashboard(selected_year):
             "AverageAttendanceRate": "Average Attendance Rate",
             "District": vocab_district
         }
+    )
+    
+    fig_cpd_district_gender_trend.update_layout(
+        title_font_size=12,
     )
     
     fig_cpd_district_gender_trend.update_yaxes(
@@ -210,7 +215,8 @@ def update_dashboard(selected_year):
         mapbox_center={"lat": center_lat, "lon": center_lon},
         mapbox_zoom=3, # calculated zoom is ok, but still decided to override her for now.
         mapbox_style="carto-positron",
-        margin={"r": 0, "t": 0, "l": 0, "b": 0}
+        margin={"r": 0, "t": 0, "l": 0, "b": 0},
+        title_font_size=12
     )
 
     ###########################################################################
@@ -227,7 +233,8 @@ def update_dashboard(selected_year):
     
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_region.update_layout(
-        xaxis_tickangle=90
+        xaxis_tickangle=90,
+        title_font_size=12
     )
     fig_cpd_region.update_yaxes(
         range=[0, 1],     # forces 0% → 100%
@@ -248,7 +255,8 @@ def update_dashboard(selected_year):
     
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_authoritygroup.update_layout(
-        xaxis_tickangle=90
+        xaxis_tickangle=90,
+        title_font_size=12
     )
     fig_cpd_authoritygroup.update_yaxes(
         range=[0, 1],     # forces 0% → 100%
@@ -275,7 +283,8 @@ def update_dashboard(selected_year):
     
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_authority_gender.update_layout(
-        xaxis_tickangle=45
+        xaxis_tickangle=45,
+        title_font_size=12
     )
     fig_cpd_authority_gender.update_xaxes(
         range=[0, 1],     # forces 0% → 100%
@@ -298,7 +307,8 @@ def update_dashboard(selected_year):
     
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_schooltype.update_layout(
-        xaxis_tickangle=90
+        xaxis_tickangle=90,
+        title_font_size=12
     )
     fig_cpd_schooltype.update_xaxes(
         range=[0, 1],     # forces 0% → 100%
@@ -316,13 +326,14 @@ def update_dashboard(selected_year):
         color='Gender',
         barmode="group",  # side-by-side bars       
         orientation="h",
-        title="CPD Average Attendance by Years of Teaching by gender for {selected_year}",
+        title=f"CPD Average Attendance by Years of Teaching by gender for {selected_year}",
         labels={"AverageAttendanceRate": "Average Attendance Rate", "YearsTeaching": "Years Teaching"}
     )
     
     # rotate the x-labels and format y-axis ticks as percentages
     fig_cpd_years_teaching.update_layout(
-        xaxis_tickangle=90
+        xaxis_tickangle=90,
+        title_font_size=12
     )
     fig_cpd_years_teaching.update_xaxes(
         range=[0, 1],     # forces 0% → 100%
