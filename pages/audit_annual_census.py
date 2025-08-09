@@ -10,21 +10,10 @@ from tabulate import tabulate
 from dash.dependencies import Input, Output
 
 # Import data and lookup dictionary from the API module
-from services.api import (    
-    df_teachercount,
-    district_lookup,
-    region_lookup,
-    authorities_lookup,
-    authoritygovts_lookup,
-    schooltypes_lookup,
-    vocab_district,
+from services.api import (
     vocab_region,
-    vocab_authority,
-    vocab_authoritygovt,
-    vocab_schooltype,
     lookup_dict,    
 )
-
 
 # Import data and lookup dictionary from the direct SQL module
 from services.sql import (
@@ -38,8 +27,6 @@ dash.register_page(__name__, path="/audit/annual-census", name="Annual Census Au
 # Filters
 # Extract survey years from lookup dictionary (assuming it contains a "surveyYears" key)
 survey_years = lookup_dict.get("surveyYears", [])
-
-print("survey_years", survey_years)
 
 # Create dropdown options using 'N' for display and 'C' for value
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]

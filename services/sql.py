@@ -4,7 +4,7 @@ from pprint import pprint
 import os
 
 from config import (
-    SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD, SQL_DRIVER
+    DEBUG, SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD, SQL_DRIVER
 )
 
 # Connection string
@@ -68,11 +68,12 @@ df_submission = fetch_survey_submission_data()
 ###############################################################################
 # Debugging logs
 ###############################################################################
-if True:  # Replace with a condition if needed
-    print("✅ df_submission (head):")
-    pprint(df_submission.head(3).to_dict(orient="records"))
-    print("\nℹ️ df_submission (info):")
-    print(df_submission.info())
-    print("\nℹ️ df_submission (sample):")
-    print(df_submission.head(5))
-    print("End of sql.py debug output")
+if DEBUG:
+    # print("✅ df_submission (head):")
+    # pprint(df_submission.head(3).to_dict(orient="records"))
+    # print("\nℹ️ df_submission (info):")
+    # print(df_submission.info())
+    # print("\nℹ️ df_submission (sample):")
+    # print(df_submission.head(5))
+    # print("End of sql.py debug output")
+    pass

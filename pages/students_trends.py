@@ -6,7 +6,8 @@ import pandas as pd
 import plotly.express as px
 
 # Import data and figures from the API module
-from services.api import df_enrol, auth_status, data_status
+from services.api import get_df_enrol, auth_status, data_status
+df_enrol = get_df_enrol()
 
 # Register this page as the Trends page
 dash.register_page(__name__, path="/students/trends", name="Students Trends")

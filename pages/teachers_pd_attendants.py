@@ -4,11 +4,10 @@ import dash_bootstrap_components as dbc
 from dash import dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
-import pandas as pd
 
 # Import the PD data
 from services.api import (
-    df_teacherpdx,
+    get_df_teacherpdx,
     vocab_district,
     vocab_region,
     vocab_authority,
@@ -16,6 +15,7 @@ from services.api import (
     vocab_schooltype,
     lookup_dict,
 )
+df_teacherpdx = get_df_teacherpdx()
 
 from services.utilities import calculate_center, calculate_zoom
 
@@ -28,7 +28,7 @@ year_options = [{'label': item['N'], 'value': item['C']} for item in survey_year
 default_year = max([int(item['C']) for item in survey_years], default=2024)
 
 # --- Layout ---
-def teachers_pd_overview_layout():
+def teachers_pd_attendants_layout():
     return dbc.Container([
         dbc.Row([
             dbc.Col(html.H1("Teachers PD Attendants"), width=12, className="m-1"),
@@ -45,57 +45,79 @@ def teachers_pd_overview_layout():
                 className="m-1"
             )
         ]),
+        # --- No data message (hidden by default) ---
         dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-school-map-chart"), md=12, xs=12, className="p-3"),
-        ], className="m-1"),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-district-gender-bar-chart"), md=4, xs=12, className="p-3"),
-            # dbc.Col(dcc.Graph(id="pd-school-map-chart"), md=3, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-district-gender-trend-chart"), md=8, xs=12, className="p-3"),
-        ], className="m-1"),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-region-bar-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-authority-bar-chart"), md=4, xs=12, className="p-3"),
+            dbc.Col(
+                dbc.Alert(id="pd-attendants-nodata-msg", color="warning", is_open=False),
+                width=12,
+                className="m-1"
+            ),
         ]),
-        dbc.Row([            
-            dbc.Col(dcc.Graph(id="pd-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-years-teaching-bar-chart"), md=8, xs=12, className="p-3"),
-        ]),        
+        # --- Wrap charts so we can hide/show them cleanly ---
+        html.Div(id="pd-attendants-content", children=[
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-school-map-chart"), md=12, xs=12, className="p-3"),
+            ], className="m-1"),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-district-gender-bar-chart"), md=4, xs=12, className="p-3"),
+                # dbc.Col(dcc.Graph(id="pd-school-map-chart"), md=3, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-district-gender-trend-chart"), md=8, xs=12, className="p-3"),
+            ], className="m-1"),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-region-bar-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-authority-bar-chart"), md=4, xs=12, className="p-3"),
+            ]),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-years-teaching-bar-chart"), md=8, xs=12, className="p-3"),
+            ]),
+        ]),
     ], fluid=True)
 
 # --- Callbacks ---
 @dash.callback(
-    Output(component_id="pd-district-gender-bar-chart", component_property="figure"),
-    Output(component_id="pd-district-gender-trend-chart", component_property="figure"),
-    Output(component_id="pd-school-map-chart", component_property="figure"),
-    Output(component_id="pd-region-bar-chart", component_property="figure"),
-    Output(component_id="pd-authoritygroup-pie-chart", component_property="figure"),
-    Output(component_id="pd-authority-bar-chart", component_property="figure"),
-    Output(component_id="pd-schooltype-pie-chart", component_property="figure"),
-    Output(component_id="pd-years-teaching-bar-chart", component_property="figure"),
-    Input(component_id="year-filter-pd", component_property="value")
+    Output("pd-district-gender-bar-chart", "figure"),
+    Output("pd-district-gender-trend-chart", "figure"),
+    Output("pd-school-map-chart", "figure"),
+    Output("pd-region-bar-chart", "figure"),
+    Output("pd-authoritygroup-pie-chart", "figure"),
+    Output("pd-authority-bar-chart", "figure"),
+    Output("pd-schooltype-pie-chart", "figure"),
+    Output("pd-years-teaching-bar-chart", "figure"),
+    # --- No data UX ---
+    Output("pd-attendants-nodata-msg", "children"),
+    Output("pd-attendants-nodata-msg", "is_open"),
+    Output("pd-attendants-content", "style"),
+    Input("year-filter-pd", "value"),
+    Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
-def update_dashboard(selected_year):
+def update_dashboard(selected_year, _warehouse_version):
     if selected_year is None:
-        return {}, {}, {}, {}, {}, {}, {}, {}
-    
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, "No data", True, {"display": "none"})
+
+    # Get latest DF and guard against None/empty
+    df = get_df_teacherpdx()
+    if df is None or df.empty:
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, "No data available.", True, {"display": "none"})
+
     # Filter the PD dataset
-    filtered = df_teacherpdx[df_teacherpdx['SurveyYear'] == selected_year]
+    filtered = df[df['SurveyYear'] == selected_year].copy()
+    if filtered.empty:
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
 
     ###########################################################################
     # PD Attendants by District and Gender (Stacked Bar Chart)
     ###########################################################################
-    filtered = df_teacherpdx[df_teacherpdx['SurveyYear'] == selected_year].copy()
-
-    # Group by user-friendly District and Gender
     grouped_pd = (
         filtered.groupby(['District', 'Gender'])['Attendants']
         .sum()
         .reset_index()
     )
 
-    # Create stacked bar chart
     fig_pd_district_gender = px.bar(
         grouped_pd,
         x="District",
@@ -109,14 +131,13 @@ def update_dashboard(selected_year):
             "Gender": "Gender"
         }
     )
-
     fig_pd_district_gender.update_layout(xaxis_tickangle=90)
-    
+
     ###########################################################################
     # PD Attendants by District and Gender Over Time (Trend Line Chart)
     ###########################################################################
     grouped_trend = (
-        df_teacherpdx.groupby(['SurveyYear', 'District'])['Attendants']
+        df.groupby(['SurveyYear', 'District'])['Attendants']
         .sum()
         .reset_index()
     )
@@ -135,33 +156,27 @@ def update_dashboard(selected_year):
             "District": vocab_district
         }
     )
-    
+
     ###########################################################################
     # PD Attendants by School (Map)
     ###########################################################################
-    
-    # Step 1: Default location of schools with no coordinates known
     DEFAULT_LAT = 1.4353492965396066
     DEFAULT_LON = 173.0003430428269
     filtered['lat'] = filtered['lat'].fillna(DEFAULT_LAT)
     filtered['lon'] = filtered['lon'].fillna(DEFAULT_LON)
 
     filtered_map = filtered
-    
-    # Prepare list of (lat, lon) tuples
+
     coords = list(zip(filtered_map['lat'], filtered_map['lon']))
-    # Compute correct center
     center_lat, center_lon = calculate_center(coords)
     zoom = calculate_zoom(coords)
-    
+
     print("center_lat:", center_lat)
     print("center_lon:", center_lon)
-    print("zoom:", zoom)    
+    print("zoom:", zoom)
 
-    # Group by school (in case some schools have multiple PD events)
     grouped_map = filtered_map.groupby(['schNo', 'schName', 'lat', 'lon'], as_index=False)['Attendants'].sum()
 
-    # Create the map
     fig_pd_school_map = px.scatter_mapbox(
         grouped_map,
         lat='lat',
@@ -177,7 +192,7 @@ def update_dashboard(selected_year):
 
     fig_pd_school_map.update_layout(
         mapbox_center={"lat": center_lat, "lon": center_lon},
-        mapbox_zoom=3, # calculated zoom is ok, but still decided to override her for now.
+        mapbox_zoom=3,  # keep override
         mapbox_style="carto-positron",
         margin={"r": 0, "t": 0, "l": 0, "b": 0}
     )
@@ -187,7 +202,7 @@ def update_dashboard(selected_year):
     ###########################################################################
     fig_pd_region = px.bar(
         filtered.groupby(['Region','Gender']).sum(numeric_only=True).reset_index(),
-        x='Region', y='Attendants',        
+        x='Region', y='Attendants',
         color="Gender",
         title=f"PD Attendants by {vocab_region} and Gender for {selected_year}",
         labels={"Attendants": "Number of Attendants"}
@@ -195,12 +210,12 @@ def update_dashboard(selected_year):
 
     ###########################################################################
     # PD Count by Authority Group (i.e. Govt) (Pie Chart)
-    ###########################################################################            
+    ###########################################################################
     grouped_school = filtered.groupby(['AuthorityGroup','Gender'])['Attendants'].sum().reset_index()
 
     fig_pd_authoritygroup = px.pie(
          grouped_school,
-         color_discrete_sequence=px.colors.qualitative.D3, # For some reason pie requires an override...
+         color_discrete_sequence=px.colors.qualitative.D3,
          names="AuthorityGroup",
          values="Attendants",
          title=f"PD Attendants by {vocab_authoritygovt} and Gender for {selected_year}",
@@ -227,12 +242,12 @@ def update_dashboard(selected_year):
 
     ###########################################################################
     # PD Count by School Types (Pie Chart)
-    ###########################################################################            
+    ###########################################################################
     grouped_school = filtered.groupby(['SchoolType','Gender'])['Attendants'].sum().reset_index()
 
     fig_pd_schooltype = px.pie(
          grouped_school,
-         color_discrete_sequence=px.colors.qualitative.D3, # For some reason pie requires an override...
+         color_discrete_sequence=px.colors.qualitative.D3,
          names="SchoolType",
          values="Attendants",
          title=f"PD Attendants by {vocab_schooltype} and Gender for {selected_year}",
@@ -249,7 +264,7 @@ def update_dashboard(selected_year):
         x="Attendants",
         orientation='h',
         color='Gender',
-        title="PD Attendants by Years of Teaching by Gender for {selected_year}",
+        title=f"PD Attendants by Years of Teaching by Gender for {selected_year}",
         labels={"Attendants": "Number of Attendants", "YearsTeaching": "Years Teaching"}
     )
 
@@ -261,7 +276,8 @@ def update_dashboard(selected_year):
         fig_pd_authoritygroup,
         fig_pd_authority_gender,
         fig_pd_schooltype,
-        fig_pd_years_teaching
+        fig_pd_years_teaching,
+        "", False, {}  # hide alert, show content
     )
 
-layout = teachers_pd_overview_layout()
+layout = teachers_pd_attendants_layout()
