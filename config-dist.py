@@ -19,14 +19,16 @@ LOOKUPS_URL = f"{BASE_URL}/api/lookups/collection/core"
 ENROL_URL = f"{BASE_URL}/api/warehouse/enrol/school"
 TABLEENROLX_URL = f"{BASE_URL}/api/warehouse/tableEnrolX/r"
 TEACHERCOUNT_URL = f"{BASE_URL}/api/warehouse/teachercountx"
-TEACHERCPDX_URL = f"{BASE_URL}/api/warehouse/teachercpd/x"
+TEACHERPDX_URL = f"{BASE_URL}/api/warehouse/teacherpd/x"
+TEACHERPDATTENDANCEX_URL = f"{BASE_URL}/api/warehouse/teacherpdattendance/x"
 
 # Cache file paths
 LOOKUPS_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_lookups_data.json"
 ENROL_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_enrol_data.json"
 TABLEENROLX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_tableenrolx_data.json"
 TEACHERCOUNT_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teachercount_data.json"
-TEACHERCPDX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teachercpdx_data.json"
+TEACHERPDX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teacherpdx_data.json"
+TEACHERPDATTENDANCEX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teacherpdattendancex_data.json"
 
 # Direct SQL server access configuration
 SQL_SERVER = os.getenv("SQL_SERVER", "SERVERNAME")

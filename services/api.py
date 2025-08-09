@@ -9,9 +9,9 @@ from pprint import pprint
 from config import (
     DEBUG, USERNAME, PASSWORD, BASE_URL, LOGIN_URL, 
     LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, 
-    TEACHERCOUNT_URL, TEACHERCPDX_URL, 
+    TEACHERCOUNT_URL, TEACHERPDX_URL, TEACHERPDATTENDANCEX_URL, 
     LOOKUPS_URL_CACHE_FILE, ENROL_URL_CACHE_FILE, TABLEENROLX_URL_CACHE_FILE, 
-    TEACHERCOUNT_URL_CACHE_FILE, TEACHERCPDX_URL_CACHE_FILE
+    TEACHERCOUNT_URL_CACHE_FILE, TEACHERPDX_URL_CACHE_FILE, TEACHERPDATTENDANCEX_URL_CACHE_FILE
 )
 
 # Global variables
@@ -151,7 +151,8 @@ if not df_teachercount.empty:
     # Create a total teacher count column (if needed for other charts)
     df_teachercount['TotalTeachers'] = df_teachercount['NumTeachersM'].fillna(0) + df_teachercount['NumTeachersF'].fillna(0) + df_teachercount['NumTeachersNA'].fillna(0)
 
-df_teachercpdx = fetch_data(TEACHERCPDX_URL, is_lookup=False, cache_file=TEACHERCPDX_URL_CACHE_FILE)
+df_teacherpdx = fetch_data(TEACHERPDX_URL, is_lookup=False, cache_file=TEACHERPDX_URL_CACHE_FILE)
+df_teacherpdattendancex = fetch_data(TEACHERPDATTENDANCEX_URL, is_lookup=False, cache_file=TEACHERPDATTENDANCEX_URL_CACHE_FILE)
 
 ###############################################################################
 # Setup lookups
