@@ -1,3 +1,11 @@
+import warnings
+import urllib3
+import requests
+
+warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 import os
 import dash
 from dash import dcc, html
@@ -5,6 +13,35 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 
 from config import DEBUG, CONTEXT
+
+# 🔄 Background data refresh (ETag-aware)
+from dash.dependencies import Input, Output
+from services.api import background_refresh_all
+import time
+
+# ✅ Robust server-side background refresher
+import threading, logging
+_bg_thread_started = False
+_bg_lock = threading.Lock()
+
+def _start_server_side_refresh():
+    global _bg_thread_started
+    with _bg_lock:
+        if _bg_thread_started:
+            return
+        _bg_thread_started = True
+
+        def _loop():
+            while True:
+                try:
+                    print("[bg] tick (server-side)")
+                    background_refresh_all()
+                except Exception as e:
+                    logging.warning(f"Background refresh error: {e}")
+                time.sleep(300)  # 5 minutes
+
+        t = threading.Thread(target=_loop, name="bg-refresh", daemon=True)
+        t.start()
 
 app = dash.Dash(
     __name__, 
@@ -14,6 +51,15 @@ app = dash.Dash(
 app.config.suppress_callback_exceptions = True
 
 server = app.server  # Expose the underlying Flask instance
+
+# 🔧 Start background thread regardless of reloader quirks
+_start_server_side_refresh()
+
+# 🔧 Belt-and-suspenders: start again on first request (no-op if already started)
+@server.before_request
+def _ensure_bg_started():
+    _start_server_side_refresh()
+
 
 # Create a Navigation Bar
 navbar = dbc.NavbarSimple(
@@ -152,9 +198,21 @@ app.layout = html.Div([
     # dcc.Location is optional here, as dash.pages auto-injects it.
     dcc.Location(id="url", refresh=False),
     navbar,
-    dash.page_container  # This container will render the current page's layout
+    dash.page_container,  # This container will render the current page's layout
+
+    # 🔄 Background interval + invisible store to carry callback output
+    dcc.Store(id="bg-refresh-state"),
+    dcc.Interval(id="bg-refresh", interval=300_000, n_intervals=0),  # 5 minutes
 ])
 
+# Background refresh callback (runs regardless of user navigation)
+@dash.callback(
+    Output("bg-refresh-state", "data"),
+    Input("bg-refresh", "n_intervals")
+)
+def _background_refresh(_):
+    background_refresh_all()
+    return {"last": time.time()}
 
 # Define chart palettes
 import plotly.express as px

@@ -9,7 +9,7 @@ import plotly.express as px
 
 # Import data and lookup dictionary from the API module
 from services.api import (
-    df_teachercount, 
+    get_df_teachercount, 
     lookup_dict, 
     district_lookup, 
     region_lookup, 
@@ -18,6 +18,7 @@ from services.api import (
     vocab_district,
     vocab_schooltype
 )
+df_teachercount = get_df_teachercount()
 
 # Register this page as the Samples page under Teachers
 dash.register_page(__name__, path="/teachers/samples", name="Teachers Samples")
@@ -25,8 +26,6 @@ dash.register_page(__name__, path="/teachers/samples", name="Teachers Samples")
 # Filters
 # Extract survey years from lookup dictionary (assuming it contains a "surveyYears" key)
 survey_years = lookup_dict.get("surveyYears", [])
-
-print("survey_years", survey_years)
 
 # Create dropdown options using 'N' for display and 'C' for value
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]

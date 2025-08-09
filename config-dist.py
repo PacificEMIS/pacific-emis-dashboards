@@ -15,6 +15,7 @@ BASE_URL = os.getenv("EMIS_BASE_URL", "https://some-emis-url.pacific-emis.org")
 LOGIN_URL = f"{BASE_URL}/api/token"
 
 # REST API endpoints
+WAREHOUSE_VERSION_URL = f"{BASE_URL}/api/warehouse/version"
 LOOKUPS_URL = f"{BASE_URL}/api/lookups/collection/core"
 ENROL_URL = f"{BASE_URL}/api/warehouse/enrol/school"
 TABLEENROLX_URL = f"{BASE_URL}/api/warehouse/tableEnrolX/r"
