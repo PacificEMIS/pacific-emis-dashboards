@@ -5,10 +5,12 @@ import requests
 import pandas as pd
 import plotly.express as px
 from pprint import pprint
+import xml.etree.ElementTree as ET
+import time
 
 from config import (
     DEBUG, USERNAME, PASSWORD, BASE_URL, LOGIN_URL, 
-    LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, 
+    WAREHOUSE_VERSION_URL, LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, 
     TEACHERCOUNT_URL, TEACHERPDX_URL, TEACHERPDATTENDANCEX_URL, 
     LOOKUPS_URL_CACHE_FILE, ENROL_URL_CACHE_FILE, TABLEENROLX_URL_CACHE_FILE, 
     TEACHERCOUNT_URL_CACHE_FILE, TEACHERPDX_URL_CACHE_FILE, TEACHERPDATTENDANCEX_URL_CACHE_FILE
@@ -64,6 +66,7 @@ def get_auth_token():
 def fetch_data(url, is_lookup=False, cache_file=None):
     """
     Fetch data from a specified URL with optional lookup and caching functionality.
+    Now supports ETag-based conditional requests to minimize unnecessary downloads.
 
     Parameters
     ----------
@@ -90,17 +93,11 @@ def fetch_data(url, is_lookup=False, cache_file=None):
     Notes
     -----
     This function supports caching to improve performance when the same data is requested multiple times.
+    If an ETag is provided by the server, it is saved alongside the cache and used in an
+    `If-None-Match` header on subsequent requests. If the server returns a 304 Not Modified,
+    the cached data is used without re-downloading.
     """
     global auth_status, data_status  # Use global cache system
-
-    # ✅ Use cache if available
-    if cache_file and os.path.exists(cache_file):
-        with open(cache_file, "r", encoding="utf-8") as f:
-            cached_data = json.load(f)
-        data_status = "✅ Loaded from cache (no API call)"
-        auth_status = "✅ Using previous authentication (no new login)"
-        logging.info(f"Using cached data for {url}")
-        return cached_data if is_lookup else pd.DataFrame(cached_data)
 
     token, new_auth_status = get_auth_token()
     auth_status = new_auth_status  # ✅ Update authentication status
@@ -114,49 +111,192 @@ def fetch_data(url, is_lookup=False, cache_file=None):
         "Accept": "application/json",
         "Origin": f"https://{BASE_URL}"
     }
+
+    # ✅ Prepare ETag file path if cache_file is given
+    etag_file = f"{cache_file}.etag" if cache_file else None
+    cached_etag = None
+
+    # ✅ If we have a cache and ETag saved, send it as If-None-Match
+    if cache_file and os.path.exists(cache_file) and etag_file and os.path.exists(etag_file):
+        try:
+            with open(etag_file, "r", encoding="utf-8") as f:
+                cached_etag = f.read().strip() or None
+        except Exception:
+            cached_etag = None
+        if cached_etag:
+            headers["If-None-Match"] = cached_etag
+
+    # --- Fetch from API ---
     response = requests.get(url, headers=headers, verify=verify_ssl)
     logging.debug(f"Response Code: {response.status_code}")
-    logging.debug(f"Response Text: {response.text}")
+    logging.debug(f"Response Text (truncated): {response.text[:500]}")
 
+    # ✅ If the server indicates no changes, load from cache
+    if response.status_code == 304 and cache_file and os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+            data_status = "✅ 304 Not Modified — loaded from cache"
+            return cached_data if is_lookup else pd.DataFrame(cached_data)
+        except Exception as e:
+            logging.error(f"Cache read error after 304: {e}")
+            data_status = "❌ Cache read error after 304!"
+            return {} if is_lookup else pd.DataFrame()
+
+    # ✅ If data is fresh (HTTP 200), save to cache and update ETag if available
     if response.status_code == 200:
         try:
             data = response.json()
             if cache_file:
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)  # ✅ Save data to cache
+                try:
+                    with open(cache_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2)
+                    if etag_file:
+                        new_etag = response.headers.get("ETag")
+                        if new_etag:
+                            with open(etag_file, "w", encoding="utf-8") as f:
+                                f.write(new_etag)
+                except Exception as e:
+                    logging.warning(f"Cache write warning: {e}")
             data_status = "✅ Data retrieved successfully!"
             return data if is_lookup else pd.DataFrame(data)
         except ValueError as e:
             logging.error(f"JSON Parsing Error: {e}")
             data_status = "❌ JSON Parsing Error!"
             return {} if is_lookup else pd.DataFrame()
+
+    # ⚠️ If fetch failed but cache exists, load stale data
+    if cache_file and os.path.exists(cache_file):
+        try:
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+            data_status = f"⚠️ {response.status_code} from server — loaded stale cache"
+            return cached_data if is_lookup else pd.DataFrame(cached_data)
+        except Exception as e:
+            logging.error(f"Fallback cache read error: {e}")
+
+    # ❌ No usable data
+    data_status = f"❌ Data fetch failed! {response.status_code}"
+    return {} if is_lookup else pd.DataFrame()
+
+def get_warehouse_version():
+    url = WAREHOUSE_VERSION_URL
+    resp = requests.get(url, verify=verify_ssl)    
+    resp.raise_for_status()
+
+    data = resp.json()
+    if isinstance(data, list) and data:
+        row = data[0]
+    elif isinstance(data, dict):
+        row = data
     else:
-        data_status = f"❌ Data fetch failed! {response.status_code}"
-        return {} if is_lookup else pd.DataFrame()
+        return None
+
+    return {"id": row.get("ID"), "datetime": row.get("versionDateTime")}
 
 ###############################################################################
-# Fetch and store data at startup
+# Lightweight, ETag-aware in-memory cache with accessors (background-friendly)
 ###############################################################################
-lookup_dict = fetch_data(LOOKUPS_URL, is_lookup=True, cache_file=LOOKUPS_URL_CACHE_FILE)
-df_enrol = fetch_data(ENROL_URL, is_lookup=False, cache_file=ENROL_URL_CACHE_FILE)
-df_tableenrolx = fetch_data(TABLEENROLX_URL, is_lookup=False, cache_file=TABLEENROLX_URL_CACHE_FILE)
+class DataResource:
+    """
+    Maintain an in-memory DataFrame (or dict) that refreshes via ETag-aware fetches.
 
-df_teachercount = fetch_data(TEACHERCOUNT_URL, is_lookup=False, cache_file=TEACHERCOUNT_URL_CACHE_FILE)
-# --- Data Processing ---
-if not df_teachercount.empty:
-    # Ensure teacher count columns are numeric
-    df_teachercount['NumTeachersM'] = pd.to_numeric(df_teachercount['NumTeachersM'], errors='coerce')
-    df_teachercount['NumTeachersF'] = pd.to_numeric(df_teachercount['NumTeachersF'], errors='coerce')
-    df_teachercount['NumTeachersNA'] = pd.to_numeric(df_teachercount['NumTeachersNA'], errors='coerce')
-    # Create a total teacher count column (if needed for other charts)
-    df_teachercount['TotalTeachers'] = df_teachercount['NumTeachersM'].fillna(0) + df_teachercount['NumTeachersF'].fillna(0) + df_teachercount['NumTeachersNA'].fillna(0)
+    Parameters
+    ----------
+    url : str
+        Endpoint URL to fetch.
+    cache_file : str
+        JSON cache file path used by fetch_data (and its .etag sidecar).
+    is_lookup : bool
+        If True, this represents a lookup dict; otherwise a DataFrame.
+    name : str
+        Friendly name for logs.
+    """
+    def __init__(self, url, cache_file, is_lookup=False, name=""):
+        self.url = url
+        self.cache_file = cache_file
+        self.is_lookup = is_lookup
+        self.name = name or url
+        self._obj = None
 
-df_teacherpdx = fetch_data(TEACHERPDX_URL, is_lookup=False, cache_file=TEACHERPDX_URL_CACHE_FILE)
-df_teacherpdattendancex = fetch_data(TEACHERPDATTENDANCEX_URL, is_lookup=False, cache_file=TEACHERPDATTENDANCEX_URL_CACHE_FILE)
+    def get(self):
+        obj = fetch_data(self.url, is_lookup=self.is_lookup, cache_file=self.cache_file)
+        # Only replace in-memory copy if we actually got something usable
+        if self.is_lookup:
+            if isinstance(obj, dict) and obj:
+                self._obj = obj
+        else:
+            if hasattr(obj, "empty") and (not obj.empty):
+                self._obj = obj
+        return self._obj
 
 ###############################################################################
+# Register resources and expose accessors
+###############################################################################
+res_lookup = DataResource(LOOKUPS_URL, LOOKUPS_URL_CACHE_FILE, is_lookup=True, name="lookups")
+res_enrol = DataResource(ENROL_URL, ENROL_URL_CACHE_FILE, name="enrol")
+res_tableenrolx = DataResource(TABLEENROLX_URL, TABLEENROLX_URL_CACHE_FILE, name="tableenrolx")
+res_teachercount = DataResource(TEACHERCOUNT_URL, TEACHERCOUNT_URL_CACHE_FILE, name="teachercount")
+res_teacherpdx = DataResource(TEACHERPDX_URL, TEACHERPDX_URL_CACHE_FILE, name="teacherpdx")
+res_teacherpdattendancex = DataResource(TEACHERPDATTENDANCEX_URL, TEACHERPDATTENDANCEX_URL_CACHE_FILE, name="teacherpdattendancex")
+
+def get_lookup_dict():
+    return res_lookup.get()
+
+def get_df_enrol():
+    return res_enrol.get()
+
+def get_df_tableenrolx():
+    return res_tableenrolx.get()
+
+def get_df_teachercount():
+    df = res_teachercount.get()
+    if df is not None and not df.empty:
+        # Ensure teacher count columns are numeric
+        if "NumTeachersM" in df.columns:
+            df['NumTeachersM'] = pd.to_numeric(df['NumTeachersM'], errors='coerce')
+        if "NumTeachersF" in df.columns:
+            df['NumTeachersF'] = pd.to_numeric(df['NumTeachersF'], errors='coerce')
+        if "NumTeachersNA" in df.columns:
+            df['NumTeachersNA'] = pd.to_numeric(df['NumTeachersNA'], errors='coerce')
+        # Create a total teacher count column (if needed for other charts)
+        if "TotalTeachers" not in df.columns:
+            cols = [c for c in ["NumTeachersM","NumTeachersF","NumTeachersNA"] if c in df.columns]
+            if cols:
+                df["TotalTeachers"] = df[cols].fillna(0).sum(axis=1)
+    return df
+
+def get_df_teacherpdx():
+    return res_teacherpdx.get()
+
+def get_df_teacherpdattendancex():
+    return res_teacherpdattendancex.get()
+
+###############################################################################
+# Background refresh (used by app.py interval)
+###############################################################################
+def background_refresh_all():
+    """
+    Trigger ETag-aware refresh of all resources. Safe to call frequently.
+    """
+    try:
+        print("Refreshing data in the background...")
+        _ = res_lookup.get()
+        _ = res_enrol.get()
+        _ = res_tableenrolx.get()
+        _ = get_df_teachercount()
+        _ = res_teacherpdx.get()
+        _ = res_teacherpdattendancex.get()
+    except Exception as e:
+        logging.warning(f"Background refresh warning: {e}")
+
+###############################################################################
+# Warm-up: ensure lookups and vocab are available as module-level constants
+###############################################################################
+# Fetch and store lookups once so that vocab_* constants are defined at import time
+lookup_dict = get_lookup_dict() or {}
+
 # Setup lookups
-###############################################################################
 # Expected format for lookup_dict["districts"]:
 # [{"C": "XYZ", "N": "Friendly Name"}, ...]
 district_lookup = {item["C"]: item["N"] for item in lookup_dict.get("districts", [])}
@@ -176,19 +316,30 @@ vocab_schooltype = vocab_lookup.get("School Type", "School Type")
 ###############################################################################
 # Debugging logs
 ###############################################################################
-if True:  # Replace with a condition if needed
-    print("lookup_dict keys preview:")
-    for k in list(lookup_dict.keys())[:3]:
-        values = lookup_dict[k]
-        print(f"  {k}: {len(values)} items")
-        if isinstance(values, list):
-            pprint(values[:2])  # Show first 2 entries only
-        else:
-            pprint(values)
-    #pprint(dict(list(lookup_dict.items())[:3]))
-    print("authorityGovt lookups:", authoritygovts_lookup)
-    print("df_enrol (head):", df_enrol.head())
-    print("df_tableenrolx (head):", df_tableenrolx.head())
-    print("df_teachercount (head):", df_teachercount.head())
-    print("df_teachercount (info):", df_teachercount.info())
-    print("End of api.py debug output")
+if DEBUG:
+    #print("lookup_dict keys preview:")
+    #for k in list(lookup_dict.keys())[:3]:
+    #    values = lookup_dict[k]
+    #    print(f"  {k}: {len(values) if isinstance(values, list) else 'n/a'} items")
+    #    if isinstance(values, list):
+    #        pprint(values[:2])  # Show first 2 entries only
+    #    else:
+    #        pprint(values)
+    #print("authorityGovt lookups:", authoritygovts_lookup)
+
+    # Show heads for a quick sanity check
+    # _enrol = get_df_enrol()
+    # _table = get_df_tableenrolx()
+    # _tc = get_df_teachercount()
+    # _tpdx = get_df_teacherpdx()
+    # _tpda = get_df_teacherpdattendancex()
+
+    # print("df_enrol (head):", None if _enrol is None else _enrol.head())
+    # print("df_tableenrolx (head):", None if _table is None else _table.head())
+    # print("df_teachercount (head):", None if _tc is None else _tc.head())
+    # if _tc is not None:
+    #     print("df_teachercount (info):", None if _tc is None else _tc.info())
+    # print("df_teacherpdx (head):", None if _tpdx is None else _tpdx.head())
+    # print("df_teacherpdattendancex (head):", None if _tpda is None else _tpda.head())
+    # print("End of api.py debug output")
+    pass

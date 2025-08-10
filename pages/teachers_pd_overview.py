@@ -4,11 +4,10 @@ import dash_bootstrap_components as dbc
 from dash import dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
-import pandas as pd
 
 # Import the PD data
 from services.api import (
-    df_teacherpdx,
+    get_df_teacherpdx,
     vocab_district,
     vocab_region,
     vocab_authority,
@@ -16,6 +15,7 @@ from services.api import (
     vocab_schooltype,
     lookup_dict,
 )
+df_teacherpdx = get_df_teacherpdx()
 
 from services.utilities import calculate_center, calculate_zoom
 
@@ -29,7 +29,7 @@ default_year = max([int(item['C']) for item in survey_years], default=2024)
 
 # --- Layout ---
 def teachers_pd_events_layout():
-    return dbc.Container([
+    return dbc.Container([        
         dbc.Row([
             dbc.Col(html.H1("Teachers PD Overview"), width=12, className="m-1"),
         ]),
@@ -45,43 +45,70 @@ def teachers_pd_events_layout():
                 className="m-1"
             )
         ]),
+        # --- No data message (hidden by default) ---
         dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=12, xs=12, className="p-3"),
-        ], className="m-1"),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-overview-district-focus-bar-chart"), md=4, xs=12, className="p-3"),
-            # dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=3, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-overview-district-trend-chart"), md=8, xs=12, className="p-3"),
-        ], className="m-1"),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-overview-region-bar-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-overview-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-overview-authority-bar-chart"), md=4, xs=12, className="p-3"),
+            dbc.Col(
+                dbc.Alert(id="pd-overview-nodata-msg", color="warning", is_open=False),
+                width=12,
+                className="m-1"
+            ),
         ]),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="pd-overview-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="pd-overview-years-teaching-bar-chart"), md=8, xs=12, className="p-3"),
+        # --- Wrap charts so we can hide/show them cleanly ---
+        html.Div(id="pd-overview-content", children=[
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=12, xs=12, className="p-3"),
+            ], className="m-1"),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-overview-district-focus-bar-chart"), md=4, xs=12, className="p-3"),
+                # dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=3, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-overview-district-trend-chart"), md=8, xs=12, className="p-3"),
+            ], className="m-1"),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-overview-region-bar-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-overview-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-overview-authority-bar-chart"), md=4, xs=12, className="p-3"),
+            ]),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-overview-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-overview-years-teaching-bar-chart"), md=8, xs=12, className="p-3"),
+            ]),
         ]),
     ], fluid=True)
 
-# --- Callbacks ---
 @dash.callback(
-    Output(component_id="pd-overview-district-focus-bar-chart", component_property="figure"),
-    Output(component_id="pd-overview-district-trend-chart", component_property="figure"),
-    Output(component_id="pd-overview-school-map-chart", component_property="figure"),
-    Output(component_id="pd-overview-region-bar-chart", component_property="figure"),
-    Output(component_id="pd-overview-authoritygroup-pie-chart", component_property="figure"),
-    Output(component_id="pd-overview-authority-bar-chart", component_property="figure"),
-    Output(component_id="pd-overview-schooltype-pie-chart", component_property="figure"),
-    Output(component_id="pd-overview-years-teaching-bar-chart", component_property="figure"),
-    Input(component_id="year-filter-pd-overview", component_property="value")
+    Output("pd-overview-district-focus-bar-chart", "figure"),
+    Output("pd-overview-district-trend-chart", "figure"),
+    Output("pd-overview-school-map-chart", "figure"),
+    Output("pd-overview-region-bar-chart", "figure"),
+    Output("pd-overview-authoritygroup-pie-chart", "figure"),
+    Output("pd-overview-authority-bar-chart", "figure"),
+    Output("pd-overview-schooltype-pie-chart", "figure"),
+    Output("pd-overview-years-teaching-bar-chart", "figure"),
+    # --- No data UX ---
+    Output("pd-overview-nodata-msg", "children"),
+    Output("pd-overview-nodata-msg", "is_open"),
+    Output("pd-overview-content", "style"),
+    # --- Inputs ---
+    Input("year-filter-pd-overview", "value"),
+    Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
-def update_pd_events_dashboard(selected_year):
+def update_pd_events_dashboard(selected_year, _warehouse_version):
+    # (no logic change needed; the extra Input just retriggers when version changes)
     if selected_year is None:
-        return {}, {}, {}, {}, {}, {}, {}, {}
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, "No data", True, {"display": "none"})
+
+    # Get latest DF and guard against None/empty
+    df = get_df_teacherpdx()
+    if df is None or df.empty:
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, "No data available.", True, {"display": "none"})
 
     # Filter the PD dataset
-    filtered = df_teacherpdx[df_teacherpdx['SurveyYear'] == selected_year].copy()
+    filtered = df[df['SurveyYear'] == selected_year].copy()
+    if filtered.empty:
+        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
 
     ###########################################################################
     # PD Events by District and Focus (Stacked Bar Chart)
@@ -112,7 +139,7 @@ def update_pd_events_dashboard(selected_year):
     # PD Events by District Over Time (Trend Line Chart)
     ###########################################################################
     grouped_trend = (
-        df_teacherpdx.groupby(['SurveyYear', 'District'])['tpdName']
+        df.groupby(['SurveyYear', 'District'])['tpdName']
         .nunique()
         .reset_index(name='Events')
     )
@@ -268,7 +295,8 @@ def update_pd_events_dashboard(selected_year):
         fig_pd_authoritygroup,
         fig_pd_authority_focus,
         fig_pd_schooltype,
-        fig_pd_years_teaching
+        fig_pd_years_teaching,
+        "", False, {}  # hide alert, show content
     )
 
 layout = teachers_pd_events_layout()
