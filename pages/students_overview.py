@@ -35,16 +35,24 @@ def students_layout():
                 className="m-1"
             )
         ]),
-        # --- No data message (hidden by default) ---
-        dbc.Row([
-            dbc.Col(
-                dbc.Alert(id="students-nodata-msg", color="warning", is_open=False),
-                width=12,
-                className="m-1"
-            ),
-        ]),
-        # --- Wrap everything we want to hide/show as a block ---
-        html.Div(id="students-content", children=[
+        # No data message + spinner host centered in a reserved spacer (prevents footer jump)
+        dcc.Loading(
+            id="students-top-loading",
+            type="default",
+            children=html.Div(
+                id="students-loading-spacer",
+                style={"minHeight": "50vh"},
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="students-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+        # Charts hidden by default; shown by callback when ready
+        html.Div(id="students-content", style={"display": "none"}, children=[
             dbc.Row([
                 dbc.Col(dcc.Graph(id="fig-island-gender-graph"), md=12, xs=12, className="p-3"),
                 dbc.Col(dcc.Graph(id="fig-district-gender-graph"), md=6, xs=12, className="p-3"),
@@ -76,29 +84,33 @@ def students_layout():
     Output("fig-Authority-gender-graph", "figure"),
     Output("enrollment-schooltype-district", "data"),
     Output("enrollment-schooltype-district", "columns"),
-    # --- No data UX ---
+    # No data UX
     Output("students-nodata-msg", "children"),
     Output("students-nodata-msg", "is_open"),
-    Output("students-content", "style"),
+    Output("students-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("students-content", "style"),         # show charts when done
     Input("year-filter", "value"),
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
 def update_dashboard(selected_year, _warehouse_version):
     if not selected_year:
         empty = ({}, {}, {}, {}, {}, [], [])
-        return (*empty, "No data", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data", True, {}, {"display": "none"})
 
     # Re-fetch and guard against None/empty
     df = get_df_tableenrolx()
     if df is None or df.empty:
         empty = ({}, {}, {}, {}, {}, [], [])
-        return (*empty, "No data available.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data available.", True, {}, {"display": "none"})
 
     # Filter dataset for the selected year
     df_filtered = df[df["SurveyYear"] == selected_year].copy()
     if df_filtered.empty:
         empty = ({}, {}, {}, {}, {}, [], [])
-        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     ##############################
     # Build the charts as before
@@ -259,6 +271,7 @@ def update_dashboard(selected_year, _warehouse_version):
             table_columns_table.append({'id': col, 'name': [district, measure]})
     table_data = df_pivot_table.to_dict("records")
 
+    # success: hide alert, hide spacer, show charts
     return (
         fig_island_gender,
         fig_district_gender,
@@ -267,7 +280,7 @@ def update_dashboard(selected_year, _warehouse_version):
         fig_Authority_gender,
         table_data,
         table_columns_table,
-        "", False, {}  # hide alert, show content
+        "", False, {"display": "none"}, {}
     )
 
 layout = students_layout()

@@ -45,16 +45,24 @@ def teachers_pd_events_layout():
                 className="m-1"
             )
         ]),
-        # --- No data message (hidden by default) ---
-        dbc.Row([
-            dbc.Col(
-                dbc.Alert(id="pd-overview-nodata-msg", color="warning", is_open=False),
-                width=12,
-                className="m-1"
-            ),
-        ]),
-        # --- Wrap charts so we can hide/show them cleanly ---
-        html.Div(id="pd-overview-content", children=[
+        # No data message + spinner host centered in a reserved spacer (prevents footer jump)
+        dcc.Loading(
+            id="pd-overview-top-loading",
+            type="default",
+            children=html.Div(
+                id="pd-overview-loading-spacer",
+                style={"minHeight": "50vh"},
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="pd-overview-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+        # Charts hidden by default; shown by callback when ready
+        html.Div(id="pd-overview-content", style={"display": "none"}, children=[
             dbc.Row([
                 dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=12, xs=12, className="p-3"),
             ], className="m-1"),
@@ -84,11 +92,12 @@ def teachers_pd_events_layout():
     Output("pd-overview-authority-bar-chart", "figure"),
     Output("pd-overview-schooltype-pie-chart", "figure"),
     Output("pd-overview-years-teaching-bar-chart", "figure"),
-    # --- No data UX ---
+    # No data UX
     Output("pd-overview-nodata-msg", "children"),
     Output("pd-overview-nodata-msg", "is_open"),
-    Output("pd-overview-content", "style"),
-    # --- Inputs ---
+    Output("pd-overview-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("pd-overview-content", "style"),         # show charts when done
+    # Inputs
     Input("year-filter-pd-overview", "value"),
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
@@ -96,19 +105,22 @@ def update_pd_events_dashboard(selected_year, _warehouse_version):
     # (no logic change needed; the extra Input just retriggers when version changes)
     if selected_year is None:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data", True, {}, {"display": "none"})
 
     # Get latest DF and guard against None/empty
     df = get_df_teacherpdx()
     if df is None or df.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data available.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data available.", True, {}, {"display": "none"})
 
     # Filter the PD dataset
     filtered = df[df['SurveyYear'] == selected_year].copy()
     if filtered.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     ###########################################################################
     # PD Events by District and Focus (Stacked Bar Chart)
@@ -287,6 +299,7 @@ def update_pd_events_dashboard(selected_year, _warehouse_version):
         labels={"Events": "Number of PD Events", "YearsTeaching": "Years Teaching", "tpdFocus": "PD Focus"}
     )
 
+    # success: hide alert, hide spacer, show charts
     return (
         fig_pd_district_focus,
         fig_pd_district_trend,
@@ -296,7 +309,7 @@ def update_pd_events_dashboard(selected_year, _warehouse_version):
         fig_pd_authority_focus,
         fig_pd_schooltype,
         fig_pd_years_teaching,
-        "", False, {}  # hide alert, show content
+        "", False, {"display": "none"}, {}
     )
 
 layout = teachers_pd_events_layout()

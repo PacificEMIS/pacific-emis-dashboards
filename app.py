@@ -111,7 +111,7 @@ navbar = dbc.NavbarSimple(
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Overview", href="/students/overview"),
-                dbc.DropdownMenuItem("Trends", href="/students/trends"),
+                #dbc.DropdownMenuItem("Trends", href="/students/trends"),
                 #dbc.DropdownMenuItem("Samples", href="/students/samples"),
             ],
             nav=True,
@@ -133,7 +133,7 @@ navbar = dbc.NavbarSimple(
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Overview", href="/teachers/overview"),
-                dbc.DropdownMenuItem("Trends", href="/teachers/trends"),
+                #dbc.DropdownMenuItem("Trends", href="/teachers/trends"),
                 #dbc.DropdownMenuItem("Samples", href="/teachers/samples"),
             ],
             nav=True,
