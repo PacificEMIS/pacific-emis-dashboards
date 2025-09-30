@@ -45,16 +45,27 @@ def teachers_pd_attendance_layout():
                 className="m-1"
             )
         ]),
-        # --- No data message (hidden by default) ---
-        dbc.Row([
-            dbc.Col(
-                dbc.Alert(id="pd-attendance-nodata-msg", color="warning", is_open=False),
-                width=12,
-                className="m-1"
-            ),
-        ]),
-        # --- Wrap charts so we can hide/show them cleanly ---
-        html.Div(id="pd-attendance-content", children=[
+        # --- No data message (spinner host) ---
+        # Wrap a spacer (minHeight 50vh) + alert inside dcc.Loading so the spinner is centered in that space
+        dcc.Loading(
+            id="pd-attendance-top-loading",
+            type="default",  # "default" | "circle" | "dot" | "cube"
+            children=html.Div(                     # <- this is the spacer the spinner will center within
+                id="pd-attendance-loading-spacer",
+                style={"minHeight": "50vh"},       # reserve space; spinner centers here while loading
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="pd-attendance-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+
+        # --- Charts content ---
+        # Charts hidden by default; callback will set style to {} when ready
+        html.Div(id="pd-attendance-content", style={"display": "none"}, children=[
             dbc.Row([
                 dbc.Col(dcc.Graph(id="pd-attendance-school-map-chart"), md=12, xs=12, className="p-3"),
             ], className="m-1"),
@@ -89,26 +100,30 @@ def teachers_pd_attendance_layout():
     # --- No data UX ---
     Output("pd-attendance-nodata-msg", "children"),
     Output("pd-attendance-nodata-msg", "is_open"),
-    Output("pd-attendance-content", "style"),
+    Output("pd-attendance-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("pd-attendance-content", "style"),         # show charts when done
     Input("pd-attendance-year-filter", "value"),
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
 def update_pd_attendance_dashboard(selected_year, _warehouse_version):
     if selected_year is None:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data", True, {"display": "none"})
+        # show alert; keep charts hidden; keep spacer visible (no minHeight override here)
+        return (*empty, "No data", True, {}, {"display": "none"})
 
     # Get latest DF and guard against None/empty
     df = get_df_teacherpdattendancex()
     if df is None or df.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data available.", True, {"display": "none"})
+        # show alert; keep charts hidden; keep spacer visible so alert has room
+        return (*empty, "No data available.", True, {}, {"display": "none"})
 
     # Filter the PD dataset
     filtered = df[df['SurveyYear'] == selected_year].copy()
     if filtered.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
+        # show alert; keep charts hidden; keep spacer visible so alert has room
+        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     # Helper to compute weighted rates per group
     def weighted_rates(df_in, group_cols):
@@ -300,6 +315,7 @@ def update_pd_attendance_dashboard(selected_year, _warehouse_version):
         labels={"AttendanceRatePct": "Attendance Rate (%)", "tpdFormat": "Format", "tpdFocus": "PD Focus"}
     )
 
+    # success: hide alert (empty+False), hide spacer, show charts
     return (
         fig_pd_district_focus,
         fig_pd_district_trend,
@@ -309,7 +325,7 @@ def update_pd_attendance_dashboard(selected_year, _warehouse_version):
         fig_pd_authority,
         fig_pd_schooltype,
         fig_pd_format,
-        "", False, {}  # hide alert, show content
+        "", False, {"display": "none"}, {}
     )
 
 layout = teachers_pd_attendance_layout()

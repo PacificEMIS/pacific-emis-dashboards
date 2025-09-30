@@ -52,14 +52,33 @@ def audit_overview_layout():
                 className="m-1"
             )
         ]),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="audit-region-submission-rate-bar-chart"), md=6, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="audit-submission-timeliness-bar-chart"), md=6, xs=12, className="p-3"),
-        ], className="m-1"),
-        dbc.Row([
-            dbc.Col(dcc.Graph(id="audit-submission-rate-map"), md=6, xs=12, className="p-3"),
-            dbc.Col(dcc.Graph(id="audit-submission-timeliness-map"), md=6, xs=12, className="p-3"),
-        ], className="m-1"),
+        # No data message + spinner host centered in a reserved spacer (prevents footer jump)
+        dcc.Loading(
+            id="audit-overview-top-loading",
+            type="default",
+            children=html.Div(
+                id="audit-overview-loading-spacer",
+                style={"minHeight": "50vh"},
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="audit-overview-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+        # Charts hidden by default; shown by callback when ready
+        html.Div(id="audit-overview-content", style={"display": "none"}, children=[
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="audit-region-submission-rate-bar-chart"), md=6, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="audit-submission-timeliness-bar-chart"), md=6, xs=12, className="p-3"),
+            ], className="m-1"),
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="audit-submission-rate-map"), md=6, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="audit-submission-timeliness-map"), md=6, xs=12, className="p-3"),
+            ], className="m-1"),
+        ]),
     ], fluid=True)
 
 # Data processing
@@ -68,11 +87,18 @@ def audit_overview_layout():
     Output(component_id="audit-submission-timeliness-bar-chart", component_property="figure"),
     Output(component_id="audit-submission-rate-map", component_property="figure"),
     Output(component_id="audit-submission-timeliness-map", component_property="figure"),
+    # No data UX
+    Output("audit-overview-nodata-msg", "children"),
+    Output("audit-overview-nodata-msg", "is_open"),
+    Output("audit-overview-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("audit-overview-content", "style"),         # show charts when done
     Input(component_id="year-filter", component_property="value")
 )
 def update_dashboard(selected_year):
     if selected_year is None:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        empty_figs = ({}, {}, {}, {})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty_figs, "No data", True, {}, {"display": "none"})
     
     ###########################################################################
     # Region Survey Submission Rate Bar Chart (Stacked Bars)
@@ -199,6 +225,11 @@ def update_dashboard(selected_year):
     # Filter for selected year
     df_map = df_submission[df_submission["svyYear"] == selected_year].copy()
 
+    # If no rows for the selected year, show no data message
+    if df_map.empty:
+        empty_figs = ({}, {}, {}, {})
+        return (*empty_figs, f"No data available for {selected_year}.", True, {}, {"display": "none"})
+
     # Coordinates
     coords = list(zip(df_map["schLat"], df_map["schLong"]))
     center_lat, center_lon = calculate_center(coords)
@@ -259,12 +290,13 @@ def update_dashboard(selected_year):
 
     fig_timeliness_map.update_coloraxes(colorbar_title="Days After Mar 15")
 
-
+    # success: hide alert, hide spacer, show charts
     return (
         fig_submission_progress,
         fig_submission_timeliness,
         fig_submission_map,
-        fig_timeliness_map
+        fig_timeliness_map,
+        "", False, {"display": "none"}, {}
     )
 
 layout = audit_overview_layout()

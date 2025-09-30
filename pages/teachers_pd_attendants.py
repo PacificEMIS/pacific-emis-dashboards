@@ -45,16 +45,24 @@ def teachers_pd_attendants_layout():
                 className="m-1"
             )
         ]),
-        # --- No data message (hidden by default) ---
-        dbc.Row([
-            dbc.Col(
-                dbc.Alert(id="pd-attendants-nodata-msg", color="warning", is_open=False),
-                width=12,
-                className="m-1"
-            ),
-        ]),
-        # --- Wrap charts so we can hide/show them cleanly ---
-        html.Div(id="pd-attendants-content", children=[
+        # No data message + spinner host centered in a reserved spacer (prevents footer jump)
+        dcc.Loading(
+            id="pd-attendants-top-loading",
+            type="default",
+            children=html.Div(
+                id="pd-attendants-loading-spacer",
+                style={"minHeight": "50vh"},
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="pd-attendants-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+        # Charts hidden by default; shown by callback when ready
+        html.Div(id="pd-attendants-content", style={"display": "none"}, children=[
             dbc.Row([
                 dbc.Col(dcc.Graph(id="pd-school-map-chart"), md=12, xs=12, className="p-3"),
             ], className="m-1"),
@@ -85,29 +93,33 @@ def teachers_pd_attendants_layout():
     Output("pd-authority-bar-chart", "figure"),
     Output("pd-schooltype-pie-chart", "figure"),
     Output("pd-years-teaching-bar-chart", "figure"),
-    # --- No data UX ---
+    # No data UX
     Output("pd-attendants-nodata-msg", "children"),
     Output("pd-attendants-nodata-msg", "is_open"),
-    Output("pd-attendants-content", "style"),
+    Output("pd-attendants-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("pd-attendants-content", "style"),         # show charts when done
     Input("year-filter-pd", "value"),
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
 def update_dashboard(selected_year, _warehouse_version):
     if selected_year is None:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data", True, {}, {"display": "none"})
 
     # Get latest DF and guard against None/empty
     df = get_df_teacherpdx()
     if df is None or df.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, "No data available.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, "No data available.", True, {}, {"display": "none"})
 
     # Filter the PD dataset
     filtered = df[df['SurveyYear'] == selected_year].copy()
     if filtered.empty:
         empty = ({}, {}, {}, {}, {}, {}, {}, {})
-        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
+        # show alert, keep spacer visible, keep charts hidden
+        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     ###########################################################################
     # PD Attendants by District and Gender (Stacked Bar Chart)
@@ -268,6 +280,7 @@ def update_dashboard(selected_year, _warehouse_version):
         labels={"Attendants": "Number of Attendants", "YearsTeaching": "Years Teaching"}
     )
 
+    # success: hide alert, hide spacer, show charts
     return (
         fig_pd_district_gender,
         fig_pd_district_gender_trend,
@@ -277,7 +290,7 @@ def update_dashboard(selected_year, _warehouse_version):
         fig_pd_authority_gender,
         fig_pd_schooltype,
         fig_pd_years_teaching,
-        "", False, {}  # hide alert, show content
+        "", False, {"display": "none"}, {}
     )
 
 layout = teachers_pd_attendants_layout()

@@ -52,16 +52,24 @@ def teachers_overview_layout():
                 className="m-1"
             )
         ]),
-        # --- No data message (hidden by default) ---
-        dbc.Row([
-            dbc.Col(
-                dbc.Alert(id="teachers-overview-nodata-msg", color="warning", is_open=False),
-                width=12,
-                className="m-1"
-            ),
-        ]),
-        # --- Wrap charts so we can hide/show them cleanly ---
-        html.Div(id="teachers-overview-content", children=[
+        # No data message + spinner host centered in a reserved spacer (prevents footer jump)
+        dcc.Loading(
+            id="teachers-overview-top-loading",
+            type="default",
+            children=html.Div(
+                id="teachers-overview-loading-spacer",
+                style={"minHeight": "50vh"},
+                children=dbc.Row([
+                    dbc.Col(
+                        dbc.Alert(id="teachers-overview-nodata-msg", color="warning", is_open=False),
+                        width=12,
+                        className="m-1"
+                    ),
+                ])
+            )
+        ),
+        # Charts hidden by default; shown by callback when ready
+        html.Div(id="teachers-overview-content", style={"display": "none"}, children=[
             dbc.Row([
                 dbc.Col(dcc.Graph(id="teachers-district-gender-bar-chart"), md=12, xs=12, className="p-3"),
             ], className="m-1"),
@@ -85,29 +93,30 @@ def teachers_overview_layout():
     Output("teachers-auth-bar-chart", "figure"),
     Output("teachers-schooltype-pie-chart", "figure"),
     Output("teachers-age-group-gender-bar-chart", "figure"),
-    # --- No data UX ---
+    # No data UX
     Output("teachers-overview-nodata-msg", "children"),
     Output("teachers-overview-nodata-msg", "is_open"),
-    Output("teachers-overview-content", "style"),
+    Output("teachers-overview-loading-spacer", "style"),  # hide spacer when done; keep while loading/no-data
+    Output("teachers-overview-content", "style"),         # show charts when done
     Input("year-filter", "value"),
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
 def update_dashboard(selected_year, _warehouse_version):
     if selected_year is None:
         empty = ({}, {}, {}, {}, {}, {})
-        return (*empty, "No data", True, {"display": "none"})
+        return (*empty, "No data", True, {}, {"display": "none"})
 
     # Re-fetch and guard against None/empty
     df = get_df_teachercount()
     if df is None or df.empty:
         empty = ({}, {}, {}, {}, {}, {})
-        return (*empty, "No data available.", True, {"display": "none"})
+        return (*empty, "No data available.", True, {}, {"display": "none"})
 
     # Filter data for the selected survey year
     filtered = df[df['SurveyYear'] == selected_year].copy()
     if filtered.empty:
         empty = ({}, {}, {}, {}, {}, {})
-        return (*empty, f"No data available for {selected_year}.", True, {"display": "none"})
+        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     ###########################################################################
     # District Bar Chart (Stacked Bars)
@@ -223,6 +232,7 @@ def update_dashboard(selected_year, _warehouse_version):
     fig_teachers_agegroup_gender.update_layout(xaxis=dict(range=[-rounded_max, rounded_max]))
     fig_teachers_agegroup_gender.update_xaxes(tickvals=tick_vals, ticktext=tick_text)
     
+    # success: hide alert, hide spacer, show content
     return (
         fig_district, 
         fig_teachers_by_region_gender, 
@@ -230,7 +240,7 @@ def update_dashboard(selected_year, _warehouse_version):
         fig_teachers_authorities_gender, 
         fig_teachers_by_school_type, 
         fig_teachers_agegroup_gender,
-        "", False, {}  # hide alert, show content
+        "", False, {"display": "none"}, {}
     )
 
 layout = teachers_overview_layout()
