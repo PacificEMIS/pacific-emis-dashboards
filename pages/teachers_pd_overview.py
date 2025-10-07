@@ -4,20 +4,21 @@ import dash_bootstrap_components as dbc
 from dash import dash_table
 from dash.dependencies import Input, Output
 import plotly.express as px
+import pandas as pd
 
 # Import the PD data
 from services.api import (
     get_df_teacherpdx,
-    vocab_district,
-    vocab_region,
-    vocab_authority,
-    vocab_authoritygovt,
-    vocab_schooltype,
+    vocab_district,      # kept (unused in figures now, but leaving import unchanged)
+    vocab_region,        # kept (unused)
+    vocab_authority,     # kept (unused)
+    vocab_authoritygovt, # kept (unused)
+    vocab_schooltype,    # kept (unused)
     lookup_dict,
 )
 df_teacherpdx = get_df_teacherpdx()
 
-from services.utilities import calculate_center, calculate_zoom
+from services.utilities import calculate_center, calculate_zoom  # kept (unused now, but leaving import unchanged)
 
 dash.register_page(__name__, path="/teacherpd/overview", name="Teacher PD Overview")
 
@@ -26,6 +27,22 @@ survey_years = lookup_dict.get("surveyYears", [])
 
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]
 default_year = max([int(item['C']) for item in survey_years], default=2024)
+
+# Event-centric helpers (unique events)
+UNIQUE_EVENT_KEYS = ["tpdName","tpdFormat","tpdFocus","tpdLocation","SurveyYear"]
+LOCATION_LABEL = "Location"  # simple label so titles read well
+
+def _build_unique_events(df_like: pd.DataFrame) -> pd.DataFrame:
+    """Return one row per unique event based on EXACT keys (no trimming/casefold)."""
+    if df_like is None or df_like.empty:
+        return df_like
+    ev = (
+        df_like.dropna(subset=UNIQUE_EVENT_KEYS, how="any")
+               .drop_duplicates(subset=UNIQUE_EVENT_KEYS)
+               .copy()
+    )
+    ev["EventID"] = ev[UNIQUE_EVENT_KEYS].astype(str).agg("||".join, axis=1)
+    return ev
 
 # --- Layout ---
 def teachers_pd_events_layout():
@@ -63,35 +80,108 @@ def teachers_pd_events_layout():
         ),
         # Charts hidden by default; shown by callback when ready
         html.Div(id="pd-overview-content", style={"display": "none"}, children=[
+
+            ###################################################################
+            # Unique PD Events table (summary)
+            ###################################################################
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=12, xs=12, className="p-3"),
+                dbc.Col(
+                    dbc.Card(
+                        [
+                            dbc.CardHeader(
+                                dbc.Row(
+                                    [
+                                        dbc.Col(
+                                            html.Strong(
+                                                id="pd-overview-events-title",
+                                                children=f"Summary PD Events from {default_year}"
+                                            ),
+                                            width="auto"
+                                        ),
+                                        dbc.Col(
+                                            dbc.Badge(id="pd-overview-events-count", color="primary", className="ms-2"),
+                                            width="auto",
+                                            className="d-flex align-items-center"
+                                        ),
+                                    ],
+                                    className="g-2 flex-nowrap"
+                                )
+                            ),
+                            dbc.CardBody(
+                                dash_table.DataTable(
+                                    id="pd-overview-events-table",
+                                    columns=[
+                                        {"name": "Survey Year", "id": "SurveyYear"},
+                                        {"name": "Event Name", "id": "tpdName"},
+                                        {"name": "Format", "id": "tpdFormat"},
+                                        {"name": "Focus", "id": "tpdFocus"},
+                                        {"name": "Location", "id": "tpdLocation"},
+                                    ],
+                                    data=[],
+                                    page_size=15,
+                                    sort_action="native",
+                                    filter_action="native",
+                                    #export_format="csv",
+                                    style_table={"overflowX": "auto"},
+                                    style_cell={"whiteSpace": "normal", "height": "auto"},
+                                )
+                            ),
+                        ],
+                        className="mb-2"
+                    ),
+                    md=12, xs=12, className="p-3"
+                ),
             ], className="m-1"),
+
+            # Row 1: Event Name — Pie (left) + Trend (right)
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-overview-district-focus-bar-chart"), md=4, xs=12, className="p-3"),
-                # dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=3, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-overview-district-trend-chart"), md=8, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-overview-region-bar-chart"), md=6, xs=12, className="p-3"),         # Event Name (Pie)
+                dbc.Col(dcc.Graph(id="pd-overview-district-trend-chart"), md=6, xs=12, className="p-3"),      # Event Name (Trend)
             ], className="m-1"),
+
+            # Row 2: Format — Pie (left) + Trend (right)
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-overview-region-bar-chart"), md=4, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-overview-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-overview-authority-bar-chart"), md=4, xs=12, className="p-3"),
-            ]),
+                dbc.Col(dcc.Graph(id="pd-overview-authoritygroup-pie-chart"), md=6, xs=12, className="p-3"),  # Format (Pie)
+                dbc.Col(dcc.Graph(id="pd-overview-authority-bar-chart"), md=6, xs=12, className="p-3"),       # Format (Trend)
+            ], className="m-1"),
+
+            # Row 3: Focus — Pie (left) + Trend (right)
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-overview-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-overview-years-teaching-bar-chart"), md=8, xs=12, className="p-3"),
-            ]),
+                dbc.Col(dcc.Graph(id="pd-overview-schooltype-pie-chart"), md=6, xs=12, className="p-3"),      # Focus (Pie)
+                dbc.Col(dcc.Graph(id="pd-overview-years-teaching-bar-chart"), md=6, xs=12, className="p-3"),  # Focus (Trend)
+            ], className="m-1"),
+
+            # Row 4: Location — Pie (left) + Trend (right)
+            dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-overview-district-focus-bar-chart"), md=6, xs=12, className="p-3"),  # Location (Pie)
+                dbc.Col(dcc.Graph(id="pd-overview-school-map-chart"), md=6, xs=12, className="p-3"),          # Location (Trend)
+            ], className="m-1"),
         ]),
     ], fluid=True)
 
 @dash.callback(
-    Output("pd-overview-district-focus-bar-chart", "figure"),
-    Output("pd-overview-district-trend-chart", "figure"),
-    Output("pd-overview-school-map-chart", "figure"),
+    Output("pd-overview-events-title", "children"),
+
+    # Table + count badge
+    Output("pd-overview-events-table", "data"),
+    Output("pd-overview-events-count", "children"),
+
+    # Row 1 (Event Name): Pie + Trend
     Output("pd-overview-region-bar-chart", "figure"),
+    Output("pd-overview-district-trend-chart", "figure"),
+
+    # Row 2 (Format): Pie + Trend
     Output("pd-overview-authoritygroup-pie-chart", "figure"),
     Output("pd-overview-authority-bar-chart", "figure"),
+
+    # Row 3 (Focus): Pie + Trend
     Output("pd-overview-schooltype-pie-chart", "figure"),
     Output("pd-overview-years-teaching-bar-chart", "figure"),
+
+    # Row 4 (Location): Pie + Trend
+    Output("pd-overview-district-focus-bar-chart", "figure"),
+    Output("pd-overview-school-map-chart", "figure"),
+
     # No data UX
     Output("pd-overview-nodata-msg", "children"),
     Output("pd-overview-nodata-msg", "is_open"),
@@ -102,213 +192,202 @@ def teachers_pd_events_layout():
     Input("warehouse-version-store", "data"),   # <— triggers when warehouse version changes
 )
 def update_pd_events_dashboard(selected_year, _warehouse_version):
+    # Dynamic Title
+    title_str = f"Summary PD Events from {selected_year if selected_year is not None else default_year}"
+    
     # (no logic change needed; the extra Input just retriggers when version changes)
     if selected_year is None:
-        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        empty_figs = ({}, {}, {}, {}, {}, {}, {}, {})
         # show alert, keep spacer visible, keep charts hidden
-        return (*empty, "No data", True, {}, {"display": "none"})
+        return (title_str, [], "0",
+                *empty_figs,
+                "No data", True, {}, {"display": "none"})
 
     # Get latest DF and guard against None/empty
     df = get_df_teacherpdx()
     if df is None or df.empty:
-        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        empty_figs = ({}, {}, {}, {}, {}, {}, {}, {})
         # show alert, keep spacer visible, keep charts hidden
-        return (*empty, "No data available.", True, {}, {"display": "none"})
+        return (title_str, [], "0",
+                *empty_figs,
+                "No data available.", True, {}, {"display": "none"})
 
     # Filter the PD dataset
     filtered = df[df['SurveyYear'] == selected_year].copy()
     if filtered.empty:
-        empty = ({}, {}, {}, {}, {}, {}, {}, {})
+        empty_figs = ({}, {}, {}, {}, {}, {}, {}, {})
         # show alert, keep spacer visible, keep charts hidden
-        return (*empty, f"No data available for {selected_year}.", True, {}, {"display": "none"})
+        return (title_str, [], "0",
+                *empty_figs,
+                f"No data available for {selected_year}.", True, {}, {"display": "none"})
+
+    # ---- Unique events table data & count (based on exact uniqueness rule) ----
+    # Uniqueness keys: [tpdName, tpdFormat, tpdFocus, tpdLocation, SurveyYear]
+    ev_unique = _build_unique_events(filtered)
+    unique_events_df = (
+        ev_unique.loc[:, ["SurveyYear", "tpdName", "tpdFormat", "tpdFocus", "tpdLocation"]]
+                  .sort_values(["SurveyYear", "tpdName"])
+                  .reset_index(drop=True)
+    )
+    unique_events_data = unique_events_df.to_dict("records")
+    unique_events_count = str(len(unique_events_df))
+
+    # For trends we need all years (event-centric)
+    ev_all_years = _build_unique_events(df)
 
     ###########################################################################
-    # PD Events by District and Focus (Stacked Bar Chart)
+    # Row 1 — Event Name (Pie) + Event Name over time (Trend)
     ###########################################################################
-    grouped_pd = (
-        filtered.groupby(['District', 'tpdFocus'])['tpdName']
-        .nunique()
-        .reset_index(name='Events')
+    grouped_name_pie = (
+        ev_unique.groupby('tpdName', as_index=False)
+                 .size().rename(columns={'size':'Events'})
+                 .sort_values('Events', ascending=False)
+    )
+    fig_name_pie = px.pie(
+        grouped_name_pie,
+        names="tpdName",
+        values="Events",
+        color_discrete_sequence=px.colors.qualitative.D3,
+        title=f"PD Events by Event Name for {selected_year}",
+        labels={"tpdName": "Event Name", "Events": "Number of PD Events"}
     )
 
-    fig_pd_district_focus = px.bar(
-        grouped_pd,
-        x="District",
-        y="Events",
-        color="tpdFocus",
-        barmode="stack",
-        title=f"PD Events by {vocab_district} and Focus in {selected_year}",
-        labels={
-            "District": vocab_district,
-            "Events": "Number of PD Events",
-            "tpdFocus": "PD Focus"
-        }
+    grouped_name_trend = (
+        ev_all_years.groupby(['SurveyYear','tpdName'], as_index=False)
+                    .size().rename(columns={'size':'Events'})
+                    .sort_values(['tpdName','SurveyYear'])
     )
-
-    fig_pd_district_focus.update_layout(xaxis_tickangle=90)
-
-    ###########################################################################
-    # PD Events by District Over Time (Trend Line Chart)
-    ###########################################################################
-    grouped_trend = (
-        df.groupby(['SurveyYear', 'District'])['tpdName']
-        .nunique()
-        .reset_index(name='Events')
-    )
-
-    fig_pd_district_trend = px.line(
-        grouped_trend,
+    fig_name_trend = px.line(
+        grouped_name_trend,
         x='SurveyYear',
         y='Events',
-        color='District',
-        line_group='District',
+        color='tpdName',
+        line_group='tpdName',
         markers=True,
-        title=f"PD Events by {vocab_district} Over Time",
-        labels={
-            "SurveyYear": "Year",
-            "Events": "Number of PD Events",
-            "District": vocab_district
-        }
+        title="PD Events by Event Name Over Time",
+        labels={"SurveyYear": "Year", "Events": "Number of PD Events", "tpdName": "Event Name"}
+    )
+    fig_name_trend.update_xaxes(tickmode="linear", dtick=1, tickformat="d")
+
+    ###########################################################################
+    # Row 2 — Format (Pie) + Format over time (Trend)
+    ###########################################################################
+    grouped_format_pie = (
+        ev_unique.groupby('tpdFormat', as_index=False)
+                 .size().rename(columns={'size':'Events'})
+                 .sort_values('Events', ascending=False)
+    )
+    fig_format_pie = px.pie(
+        grouped_format_pie,
+        names="tpdFormat",
+        values="Events",
+        color_discrete_sequence=px.colors.qualitative.D3,
+        title=f"PD Events by Format for {selected_year}",
+        labels={"tpdFormat": "PD Format", "Events": "Number of PD Events"}
     )
 
+    grouped_format_trend = (
+        ev_all_years.groupby(['SurveyYear','tpdFormat'], as_index=False)
+                    .size().rename(columns={'size':'Events'})
+                    .sort_values(['tpdFormat','SurveyYear'])
+    )
+    fig_format_trend = px.line(
+        grouped_format_trend,
+        x='SurveyYear',
+        y='Events',
+        color='tpdFormat',
+        line_group='tpdFormat',
+        markers=True,
+        title="PD Events by Format Over Time",
+        labels={"SurveyYear": "Year", "Events": "Number of PD Events", "tpdFormat": "PD Format"}
+    )
+    fig_format_trend.update_xaxes(tickmode="linear", dtick=1, tickformat="d")
+
     ###########################################################################
-    # PD Events by School (Map)
+    # Row 3 — Focus (Pie) + Focus over time (Trend)
     ###########################################################################
-    DEFAULT_LAT = 1.4353492965396066
-    DEFAULT_LON = 173.0003430428269
-    filtered['lat'] = filtered['lat'].fillna(DEFAULT_LAT)
-    filtered['lon'] = filtered['lon'].fillna(DEFAULT_LON)
-
-    filtered_map = filtered
-
-    coords = list(zip(filtered_map['lat'], filtered_map['lon']))
-    center_lat, center_lon = calculate_center(coords)
-    zoom = calculate_zoom(coords)
-
-    print("center_lat:", center_lat)
-    print("center_lon:", center_lon)
-    print("zoom:", zoom)
-
-    grouped_map = (
-        filtered_map.groupby(['schNo', 'schName', 'lat', 'lon'], as_index=False)['tpdName']
-        .nunique()
-        .rename(columns={'tpdName': 'Events'})
+    grouped_focus_pie = (
+        ev_unique.groupby('tpdFocus', as_index=False)
+                 .size().rename(columns={'size':'Events'})
+                 .sort_values('Events', ascending=False)
+    )
+    fig_focus_pie = px.pie(
+        grouped_focus_pie,
+        names="tpdFocus",
+        values="Events",
+        color_discrete_sequence=px.colors.qualitative.D3,
+        title=f"PD Events by Focus for {selected_year}",
+        labels={"tpdFocus": "PD Focus", "Events": "Number of PD Events"}
     )
 
-    fig_pd_school_map = px.scatter_mapbox(
-        grouped_map,
-        lat='lat',
-        lon='lon',
-        size='Events',
-        color='Events',
-        color_continuous_scale="Blues",
-        size_max=20,
-        zoom=5,
-        hover_name="schName",
-        title=f"PD Events by School for {selected_year}"
+    grouped_focus_trend = (
+        ev_all_years.groupby(['SurveyYear','tpdFocus'], as_index=False)
+                    .size().rename(columns={'size':'Events'})
+                    .sort_values(['tpdFocus','SurveyYear'])
     )
-
-    fig_pd_school_map.update_layout(
-        mapbox_center={"lat": center_lat, "lon": center_lon},
-        mapbox_zoom=3,
-        mapbox_style="carto-positron",
-        margin={"r": 0, "t": 0, "l": 0, "b": 0}
-    )
-
-    ###########################################################################
-    # PD Events by Region
-    ###########################################################################
-    fig_pd_region = px.bar(
-        filtered.groupby(['Region', 'tpdFocus'])['tpdName'].nunique().reset_index(name='Events'),
-        x='Region', y='Events',
-        color="tpdFocus",
-        title=f"PD Events by {vocab_region} and Focus for {selected_year}",
-        labels={"Events": "Number of PD Events", "tpdFocus": "PD Focus"}
-    )
-
-    ###########################################################################
-    # PD Events by Authority Group (i.e. Govt) (Pie Chart)
-    ###########################################################################
-    grouped_authoritygroup = (
-        filtered.groupby(['AuthorityGroup'])['tpdName']
-        .nunique()
-        .reset_index(name='Events')
-    )
-
-    fig_pd_authoritygroup = px.pie(
-         grouped_authoritygroup,
-         color_discrete_sequence=px.colors.qualitative.D3,
-         names="AuthorityGroup",
-         values="Events",
-         title=f"PD Events by {vocab_authoritygovt} for {selected_year}",
-         labels={"AuthorityGroup": vocab_authoritygovt, "Events": "Number of PD Events"}
-    )
-
-    ###########################################################################
-    # PD Events by Authority (Horizontal Stacked Bar Chart)
-    ###########################################################################
-    fig_pd_authority_focus = px.bar(
-        filtered.groupby(['Authority', 'tpdFocus'])['tpdName'].nunique().reset_index(name='Events'),
-        x='Events',
-        y='Authority',
+    fig_focus_trend = px.line(
+        grouped_focus_trend,
+        x='SurveyYear',
+        y='Events',
         color='tpdFocus',
-        barmode="stack",
-        orientation="h",
-        title=f"PD Events by {vocab_authority} and Focus for {selected_year}",
-        labels={
-            "Authority": vocab_authority,
-            "Events": "Number of PD Events",
-            "tpdFocus": "PD Focus"
-        }
+        line_group='tpdFocus',
+        markers=True,
+        title="PD Events by Focus Over Time",
+        labels={"SurveyYear": "Year", "Events": "Number of PD Events", "tpdFocus": "PD Focus"}
     )
+    fig_focus_trend.update_xaxes(tickmode="linear", dtick=1, tickformat="d")
 
     ###########################################################################
-    # PD Events by School Types (Pie Chart)
+    # Row 4 — Location (Pie) + Location over time (Trend)
     ###########################################################################
-    grouped_schooltype = (
-        filtered.groupby(['SchoolType'])['tpdName']
-        .nunique()
-        .reset_index(name='Events')
+    grouped_loc_pie = (
+        ev_unique.groupby('tpdLocation', as_index=False)
+                 .size().rename(columns={'size':'Events'})
+                 .sort_values('Events', ascending=False)
+    )
+    fig_loc_pie = px.pie(
+        grouped_loc_pie,
+        names="tpdLocation",
+        values="Events",
+        color_discrete_sequence=px.colors.qualitative.D3,
+        title=f"PD Events by {LOCATION_LABEL} for {selected_year}",
+        labels={"tpdLocation": LOCATION_LABEL, "Events": "Number of PD Events"}
     )
 
-    fig_pd_schooltype = px.pie(
-         grouped_schooltype,
-         color_discrete_sequence=px.colors.qualitative.D3,
-         names="SchoolType",
-         values="Events",
-         title=f"PD Events by {vocab_schooltype} for {selected_year}",
-         labels={"SchoolType": vocab_schooltype, "Events": "Number of PD Events"}
+    grouped_loc_trend = (
+        ev_all_years.groupby(['SurveyYear','tpdLocation'], as_index=False)
+                    .size().rename(columns={'size':'Events'})
+                    .sort_values(['tpdLocation','SurveyYear'])
     )
-
-    ###########################################################################
-    # PD Events by Years of Teaching (Horizontal Bar Chart)
-    ###########################################################################
-    grouped_years_teaching = (
-        filtered.groupby(['YearsTeaching','tpdFocus'])['tpdName']
-        .nunique()
-        .reset_index(name='Events')
+    fig_loc_trend = px.line(
+        grouped_loc_trend,
+        x='SurveyYear',
+        y='Events',
+        color='tpdLocation',
+        line_group='tpdLocation',
+        markers=True,
+        title=f"PD Events by {LOCATION_LABEL} Over Time",
+        labels={"SurveyYear": "Year", "Events": "Number of PD Events", "tpdLocation": LOCATION_LABEL}
     )
-
-    fig_pd_years_teaching = px.bar(
-        grouped_years_teaching,
-        y="YearsTeaching",
-        x="Events",
-        orientation='h',
-        color='tpdFocus',
-        title=f"PD Events by Years of Teaching and Focus for {selected_year}",
-        labels={"Events": "Number of PD Events", "YearsTeaching": "Years Teaching", "tpdFocus": "PD Focus"}
-    )
+    fig_loc_trend.update_xaxes(tickmode="linear", dtick=1, tickformat="d")
 
     # success: hide alert, hide spacer, show charts
     return (
-        fig_pd_district_focus,
-        fig_pd_district_trend,
-        fig_pd_school_map,
-        fig_pd_region,
-        fig_pd_authoritygroup,
-        fig_pd_authority_focus,
-        fig_pd_schooltype,
-        fig_pd_years_teaching,
+        title_str,
+        unique_events_data,
+        unique_events_count,
+        # Row 1: Event Name (Pie) + Trend
+        fig_name_pie,
+        fig_name_trend,
+        # Row 2: Format (Pie) + Trend
+        fig_format_pie,
+        fig_format_trend,
+        # Row 3: Focus (Pie) + Trend
+        fig_focus_pie,
+        fig_focus_trend,
+        # Row 4: Location (Pie) + Trend
+        fig_loc_pie,
+        fig_loc_trend,
         "", False, {"display": "none"}, {}
     )
 

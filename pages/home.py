@@ -9,7 +9,7 @@ dash.register_page(__name__, path="/", name="Home")
 
 layout = dbc.Container([
     dbc.Row([
-        dbc.Col(html.H1(f"Welcome to the {CONTEXT.upper()} Online Dashboards")),
+        dbc.Col(html.H1(f"Welcome to the {CONTEXT.upper()} Data Portal")),
     ], className="m-1"),
 
     dbc.Row([
@@ -18,9 +18,9 @@ layout = dbc.Container([
                         effortlessly view and monitor key metrics of interest. While the Pacific EMIS 
                         (of which {CONTEXT.upper()} is based on) offers
                         a range of pre-defined, flexible dashboards, we understand that adding new charts 
-                        and analyses can sometimes be complex and time consuming. Our goal is to simplify this process, 
-                        providing you with an intuitive and user-friendly interface that empowers you 
-                        to customize your data visualizations and gain valuable insights at a glance. 
+                        and analyses can sometimes be complex and time consuming. This new data portal
+                        serves as the go-to location for real time data, collaboration on the required types of
+                        analysis by various stakeholders. 
                         We are excited for you to explore the capabilities of this powerful tool!""")),
     ], className="m-1"),
 
@@ -36,6 +36,18 @@ layout = dbc.Container([
             html.Li("Explore timely data from the most recent school census."),
             html.Li("Access easily from anywhere, no login required."),
             html.Li("More dashboard features are being added over time."),
+        ])),
+    ], className="m-1"),
+    
+    dbc.Row([
+        dbc.Col(html.H5("Key Highlights Coming Soon:")),
+    ], className="m-1"),
+
+    dbc.Row([
+        dbc.Col(html.Ul([
+            html.Li("Downloadable live Excel workbooks (that can refresh with latest data) containing the data for further data analysis."),
+            html.Li("Links to data related documentation (e.g. User Guides, Policicy, Standards and Procedures)."),
+            html.Li("Data Publications."),
         ])),
     ], className="m-1"),
     

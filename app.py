@@ -186,7 +186,7 @@ navbar = dbc.NavbarSimple(
             color="secondary"
         ),
     ],
-    brand=f"{CONTEXT.upper()} Dashboards",
+    brand=f"{CONTEXT.upper()} Data Portal",
     brand_href="/",
     color="rgb(21,101,192)",
     dark=True,
