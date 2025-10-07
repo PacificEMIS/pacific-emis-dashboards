@@ -70,17 +70,19 @@ def teachers_pd_attendance_layout():
                 dbc.Col(dcc.Graph(id="pd-attendance-school-map-chart"), md=12, xs=12, className="p-3"),
             ], className="m-1"),
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-attendance-district-focus-bar-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-attendance-district-focus-bar-chart"), md=6, xs=12, className="p-3"),
                 # dbc.Col(dcc.Graph(id="pd-attendance-school-map-chart"), md=3, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-attendance-district-trend-chart"), md=8, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-attendance-district-trend-chart"), md=6, xs=12, className="p-3"),
             ], className="m-1"),
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-attendance-region-bar-chart"), md=4, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-attendance-authoritygroup-pie-chart"), md=4, xs=12, className="p-3"),
-                dbc.Col(dcc.Graph(id="pd-attendance-authority-bar-chart"), md=4, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-attendance-region-bar-chart"), md=6, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-attendance-schooltype-pie-chart"), md=6, xs=12, className="p-3"),
+            ]),
+             dbc.Row([
+                dbc.Col(dcc.Graph(id="pd-attendance-authoritygroup-pie-chart"), md=6, xs=12, className="p-3"),
+                dbc.Col(dcc.Graph(id="pd-attendance-authority-bar-chart"), md=6, xs=12, className="p-3"),
             ]),
             dbc.Row([
-                dbc.Col(dcc.Graph(id="pd-attendance-schooltype-pie-chart"), md=4, xs=12, className="p-3"),
                 dbc.Col(dcc.Graph(id="pd-attendance-format-bar-chart"), md=8, xs=12, className="p-3"),
             ]),
         ]),
@@ -170,6 +172,8 @@ def update_pd_attendance_dashboard(selected_year, _warehouse_version):
     # Attendance Rate by District Over Time (Trend Line Chart)
     ###########################################################################
     grouped_trend = weighted_rates(df, ['SurveyYear', 'District'])
+    # ensure x-axis uses whole years (not floats like 2024.5)
+    grouped_trend['SurveyYear'] = grouped_trend['SurveyYear'].round().astype(int)
     grouped_trend['AttendanceRatePct'] = grouped_trend['AttendanceRate'] * 100
 
     fig_pd_district_trend = px.line(
@@ -186,6 +190,9 @@ def update_pd_attendance_dashboard(selected_year, _warehouse_version):
             "District": vocab_district
         }
     )
+
+    # force integer year ticks only
+    fig_pd_district_trend.update_xaxes(tickmode="linear", dtick=1, tickformat="d")
 
     ###########################################################################
     # Attendance Rate by School (Map)
