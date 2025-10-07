@@ -9,16 +9,9 @@ import pandas as pd
 # Import the PD data
 from services.api import (
     get_df_teacherpdx,
-    vocab_district,      # kept (unused in figures now, but leaving import unchanged)
-    vocab_region,        # kept (unused)
-    vocab_authority,     # kept (unused)
-    vocab_authoritygovt, # kept (unused)
-    vocab_schooltype,    # kept (unused)
     lookup_dict,
 )
 df_teacherpdx = get_df_teacherpdx()
-
-from services.utilities import calculate_center, calculate_zoom  # kept (unused now, but leaving import unchanged)
 
 dash.register_page(__name__, path="/teacherpd/overview", name="Teacher PD Overview")
 
@@ -29,7 +22,7 @@ year_options = [{'label': item['N'], 'value': item['C']} for item in survey_year
 default_year = max([int(item['C']) for item in survey_years], default=2024)
 
 # Event-centric helpers (unique events)
-UNIQUE_EVENT_KEYS = ["tpdName","tpdFormat","tpdFocus","tpdLocation","SurveyYear"]
+UNIQUE_EVENT_KEYS = ["tpdName","tpdFormat","tpdFocus","tpdLocation","SurveyYear", "tpdStartDate"]
 LOCATION_LABEL = "Location"  # simple label so titles read well
 
 def _build_unique_events(df_like: pd.DataFrame) -> pd.DataFrame:
@@ -112,6 +105,7 @@ def teachers_pd_events_layout():
                                     id="pd-overview-events-table",
                                     columns=[
                                         {"name": "Survey Year", "id": "SurveyYear"},
+                                        {"name": "Start Date", "id": "tpdStartDate_formatted"},
                                         {"name": "Event Name", "id": "tpdName"},
                                         {"name": "Format", "id": "tpdFormat"},
                                         {"name": "Focus", "id": "tpdFocus"},
@@ -222,11 +216,13 @@ def update_pd_events_dashboard(selected_year, _warehouse_version):
                 f"No data available for {selected_year}.", True, {}, {"display": "none"})
 
     # ---- Unique events table data & count (based on exact uniqueness rule) ----
-    # Uniqueness keys: [tpdName, tpdFormat, tpdFocus, tpdLocation, SurveyYear]
+    # Uniqueness keys: [tpdName, tpdFormat, tpdFocus, tpdLocation, SurveyYear, tpdStartDate]
     ev_unique = _build_unique_events(filtered)
+    ev_unique["tpdStartDate"] = pd.to_datetime(ev_unique["tpdStartDate"], errors="coerce")
+    ev_unique["tpdStartDate_formatted"] = ev_unique["tpdStartDate"].dt.strftime("%d %b %Y")
     unique_events_df = (
-        ev_unique.loc[:, ["SurveyYear", "tpdName", "tpdFormat", "tpdFocus", "tpdLocation"]]
-                  .sort_values(["SurveyYear", "tpdName"])
+        ev_unique.loc[:, ["SurveyYear", "tpdStartDate_formatted", "tpdName", "tpdFormat", "tpdFocus", "tpdLocation"]]
+                  .sort_values(["SurveyYear", "tpdStartDate_formatted", "tpdName"])
                   .reset_index(drop=True)
     )
     unique_events_data = unique_events_df.to_dict("records")
