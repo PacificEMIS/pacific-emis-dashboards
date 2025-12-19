@@ -9,11 +9,24 @@ import xml.etree.ElementTree as ET
 import time
 
 from config import (
-    DEBUG, USERNAME, PASSWORD, BASE_URL, LOGIN_URL, 
-    WAREHOUSE_VERSION_URL, LOOKUPS_URL, ENROL_URL, TABLEENROLX_URL, 
-    TEACHERCOUNT_URL, TEACHERPDX_URL, TEACHERPDATTENDANCEX_URL, 
-    LOOKUPS_URL_CACHE_FILE, ENROL_URL_CACHE_FILE, TABLEENROLX_URL_CACHE_FILE, 
-    TEACHERCOUNT_URL_CACHE_FILE, TEACHERPDX_URL_CACHE_FILE, TEACHERPDATTENDANCEX_URL_CACHE_FILE
+    DEBUG,
+    USERNAME,
+    PASSWORD,
+    BASE_URL,
+    LOGIN_URL,
+    WAREHOUSE_VERSION_URL,
+    LOOKUPS_URL,
+    ENROL_URL,
+    TABLEENROLX_URL,
+    TEACHERCOUNT_URL,
+    TEACHERPD_URL,
+    TEACHERPDATTENDANCE_URL,
+    LOOKUPS_URL_CACHE_FILE,
+    ENROL_URL_CACHE_FILE,
+    TABLEENROLX_URL_CACHE_FILE,
+    TEACHERCOUNT_URL_CACHE_FILE,
+    TEACHERPD_URL_CACHE_FILE,
+    TEACHERPDATTENDANCE_URL_CACHE_FILE,
 )
 
 # Global variables
@@ -25,12 +38,13 @@ auth_status = "❌ Not authenticated"
 data_status = "❌ No data loaded"
 verify_ssl = not DEBUG
 
+
 def get_auth_token():
     """
     Retrieve an authentication token for accessing secure API endpoints.
 
-    This function obtains an authentication token by interacting with an external 
-    authentication service. The token is required to authenticate subsequent API 
+    This function obtains an authentication token by interacting with an external
+    authentication service. The token is required to authenticate subsequent API
     requests and should be cached for its valid duration to reduce redundant calls.
 
     Returns
@@ -41,20 +55,18 @@ def get_auth_token():
     Raises
     ------
     Exception
-        If there is an error during the authentication process, such as network issues 
+        If there is an error during the authentication process, such as network issues
         or invalid credentials.
     """
-    payload = {
-        "grant_type": "password",
-        "username": USERNAME,
-        "password": PASSWORD
-    }
+    payload = {"grant_type": "password", "username": USERNAME, "password": PASSWORD}
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
+        "Accept": "application/json",
     }
     try:
-        response = requests.post(LOGIN_URL, data=payload, headers=headers, verify=verify_ssl)
+        response = requests.post(
+            LOGIN_URL, data=payload, headers=headers, verify=verify_ssl
+        )
         if response.status_code == 200:
             token_data = response.json()
             return token_data.get("access_token"), "✅ Authentication Successful!"
@@ -62,6 +74,7 @@ def get_auth_token():
             return None, f"❌ Authentication Failed! Status {response.status_code}"
     except Exception as e:
         return None, f"❌ Error: {str(e)}"
+
 
 def fetch_data(url, is_lookup=False, cache_file=None):
     """
@@ -109,7 +122,7 @@ def fetch_data(url, is_lookup=False, cache_file=None):
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
-        "Origin": f"https://{BASE_URL}"
+        "Origin": f"https://{BASE_URL}",
     }
 
     # ✅ Prepare ETag file path if cache_file is given
@@ -117,7 +130,12 @@ def fetch_data(url, is_lookup=False, cache_file=None):
     cached_etag = None
 
     # ✅ If we have a cache and ETag saved, send it as If-None-Match
-    if cache_file and os.path.exists(cache_file) and etag_file and os.path.exists(etag_file):
+    if (
+        cache_file
+        and os.path.exists(cache_file)
+        and etag_file
+        and os.path.exists(etag_file)
+    ):
         try:
             with open(etag_file, "r", encoding="utf-8") as f:
                 cached_etag = f.read().strip() or None
@@ -179,9 +197,10 @@ def fetch_data(url, is_lookup=False, cache_file=None):
     data_status = f"❌ Data fetch failed! {response.status_code}"
     return {} if is_lookup else pd.DataFrame()
 
+
 def get_warehouse_version():
     url = WAREHOUSE_VERSION_URL
-    resp = requests.get(url, verify=verify_ssl)    
+    resp = requests.get(url, verify=verify_ssl)
     resp.raise_for_status()
 
     data = resp.json()
@@ -193,6 +212,7 @@ def get_warehouse_version():
         return None
 
     return {"id": row.get("ID"), "datetime": row.get("versionDateTime")}
+
 
 ###############################################################################
 # Lightweight, ETag-aware in-memory cache with accessors (background-friendly)
@@ -212,6 +232,7 @@ class DataResource:
     name : str
         Friendly name for logs.
     """
+
     def __init__(self, url, cache_file, is_lookup=False, name=""):
         self.url = url
         self.cache_file = cache_file
@@ -226,51 +247,77 @@ class DataResource:
             if isinstance(obj, dict) and obj:
                 self._obj = obj
         else:
-            if hasattr(obj, "empty") and (not obj.empty):
+            if isinstance(obj, pd.DataFrame) and not obj.empty:
                 self._obj = obj
         return self._obj
+
 
 ###############################################################################
 # Register resources and expose accessors
 ###############################################################################
-res_lookup = DataResource(LOOKUPS_URL, LOOKUPS_URL_CACHE_FILE, is_lookup=True, name="lookups")
+res_lookup = DataResource(
+    LOOKUPS_URL, LOOKUPS_URL_CACHE_FILE, is_lookup=True, name="lookups"
+)
 res_enrol = DataResource(ENROL_URL, ENROL_URL_CACHE_FILE, name="enrol")
-res_tableenrolx = DataResource(TABLEENROLX_URL, TABLEENROLX_URL_CACHE_FILE, name="tableenrolx")
-res_teachercount = DataResource(TEACHERCOUNT_URL, TEACHERCOUNT_URL_CACHE_FILE, name="teachercount")
-res_teacherpdx = DataResource(TEACHERPDX_URL, TEACHERPDX_URL_CACHE_FILE, name="teacherpdx")
-res_teacherpdattendancex = DataResource(TEACHERPDATTENDANCEX_URL, TEACHERPDATTENDANCEX_URL_CACHE_FILE, name="teacherpdattendancex")
+res_tableenrolx = DataResource(
+    TABLEENROLX_URL, TABLEENROLX_URL_CACHE_FILE, name="tableenrolx"
+)
+res_teachercount = DataResource(
+    TEACHERCOUNT_URL, TEACHERCOUNT_URL_CACHE_FILE, name="teachercount"
+)
+res_teacherpdx = DataResource(
+    TEACHERPD_URL, TEACHERPD_URL_CACHE_FILE, name="teacherpdx"
+)
+res_teacherpdattendancex = DataResource(
+    TEACHERPDATTENDANCE_URL,
+    TEACHERPDATTENDANCE_URL_CACHE_FILE,
+    name="teacherpdattendancex",
+)
+
 
 def get_lookup_dict():
     return res_lookup.get()
 
+
 def get_df_enrol():
     return res_enrol.get()
+
 
 def get_df_tableenrolx():
     return res_tableenrolx.get()
 
-def get_df_teachercount():
+
+def get_df_teachercount() -> pd.DataFrame:
     df = res_teachercount.get()
-    if df is not None and not df.empty:
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
         # Ensure teacher count columns are numeric
         if "NumTeachersM" in df.columns:
-            df['NumTeachersM'] = pd.to_numeric(df['NumTeachersM'], errors='coerce')
+            df["NumTeachersM"] = pd.to_numeric(df["NumTeachersM"], errors="coerce")
         if "NumTeachersF" in df.columns:
-            df['NumTeachersF'] = pd.to_numeric(df['NumTeachersF'], errors='coerce')
+            df["NumTeachersF"] = pd.to_numeric(df["NumTeachersF"], errors="coerce")
         if "NumTeachersNA" in df.columns:
-            df['NumTeachersNA'] = pd.to_numeric(df['NumTeachersNA'], errors='coerce')
+            df["NumTeachersNA"] = pd.to_numeric(df["NumTeachersNA"], errors="coerce")
         # Create a total teacher count column (if needed for other charts)
         if "TotalTeachers" not in df.columns:
-            cols = [c for c in ["NumTeachersM","NumTeachersF","NumTeachersNA"] if c in df.columns]
+            cols = [
+                c
+                for c in ["NumTeachersM", "NumTeachersF", "NumTeachersNA"]
+                if c in df.columns
+            ]
             if cols:
                 df["TotalTeachers"] = df[cols].fillna(0).sum(axis=1)
     return df
 
+
 def get_df_teacherpdx():
     return res_teacherpdx.get()
 
+
 def get_df_teacherpdattendancex():
     return res_teacherpdattendancex.get()
+
 
 ###############################################################################
 # Background refresh (used by app.py interval)
@@ -290,6 +337,7 @@ def background_refresh_all():
     except Exception as e:
         logging.warning(f"Background refresh warning: {e}")
 
+
 ###############################################################################
 # Warm-up: ensure lookups and vocab are available as module-level constants
 ###############################################################################
@@ -301,9 +349,15 @@ lookup_dict = get_lookup_dict() or {}
 # [{"C": "XYZ", "N": "Friendly Name"}, ...]
 district_lookup = {item["C"]: item["N"] for item in lookup_dict.get("districts", [])}
 region_lookup = {item["C"]: item["N"] for item in lookup_dict.get("regions", [])}
-authorities_lookup = {item["C"]: item["N"] for item in lookup_dict.get("authorities", [])}
-authoritygovts_lookup = {item["C"]: item["N"] for item in lookup_dict.get("authorityGovts", [])}
-schooltypes_lookup = {item["C"]: item["N"] for item in lookup_dict.get("schoolTypes", [])}
+authorities_lookup = {
+    item["C"]: item["N"] for item in lookup_dict.get("authorities", [])
+}
+authoritygovts_lookup = {
+    item["C"]: item["N"] for item in lookup_dict.get("authorityGovts", [])
+}
+schooltypes_lookup = {
+    item["C"]: item["N"] for item in lookup_dict.get("schoolTypes", [])
+}
 vocab_lookup = {item["C"]: item["N"] for item in lookup_dict.get("vocab", [])}
 
 # Get the localized terms for convenience
@@ -317,15 +371,15 @@ vocab_schooltype = vocab_lookup.get("School Type", "School Type")
 # Debugging logs
 ###############################################################################
 if DEBUG:
-    #print("lookup_dict keys preview:")
-    #for k in list(lookup_dict.keys())[:3]:
+    # print("lookup_dict keys preview:")
+    # for k in list(lookup_dict.keys())[:3]:
     #    values = lookup_dict[k]
     #    print(f"  {k}: {len(values) if isinstance(values, list) else 'n/a'} items")
     #    if isinstance(values, list):
     #        pprint(values[:2])  # Show first 2 entries only
     #    else:
     #        pprint(values)
-    #print("authorityGovt lookups:", authoritygovts_lookup)
+    # print("authorityGovt lookups:", authoritygovts_lookup)
 
     # Show heads for a quick sanity check
     # _enrol = get_df_enrol()

@@ -179,3 +179,6 @@ data/
 
 # Config
 config.py
+
+# Claude Code local settings
+.claude/settings.local.json
