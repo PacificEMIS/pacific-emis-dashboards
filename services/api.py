@@ -22,6 +22,7 @@ from config import (
     TEACHERPD_URL,
     TEACHERPDATTENDANCE_URL,
     SCHOOLCOUNT_URL,
+    SPECIALED_URL,
     LOOKUPS_URL_CACHE_FILE,
     ENROL_URL_CACHE_FILE,
     TABLEENROLX_URL_CACHE_FILE,
@@ -29,6 +30,7 @@ from config import (
     TEACHERPD_URL_CACHE_FILE,
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
     SCHOOLCOUNT_URL_CACHE_FILE,
+    SPECIALED_URL_CACHE_FILE,
 )
 
 # Global variables
@@ -278,6 +280,9 @@ res_teacherpdattendancex = DataResource(
 res_schoolcount = DataResource(
     SCHOOLCOUNT_URL, SCHOOLCOUNT_URL_CACHE_FILE, name="schoolcount"
 )
+res_specialed = DataResource(
+    SPECIALED_URL, SPECIALED_URL_CACHE_FILE, name="specialed"
+)
 
 
 def get_lookup_dict():
@@ -335,6 +340,18 @@ def get_df_schoolcount() -> pd.DataFrame:
     return df
 
 
+def get_df_specialed() -> pd.DataFrame:
+    df = res_specialed.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure count columns are numeric (M, F for male/female counts)
+        for col in ["M", "F", "Num"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
 ###############################################################################
 # Background refresh (used by app.py interval)
 ###############################################################################
@@ -351,6 +368,7 @@ def background_refresh_all():
         _ = res_teacherpdx.get()
         _ = res_teacherpdattendancex.get()
         _ = get_df_schoolcount()
+        _ = get_df_specialed()
     except Exception as e:
         logging.warning(f"Background refresh warning: {e}")
 

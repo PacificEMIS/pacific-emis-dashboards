@@ -118,17 +118,16 @@ navbar = dbc.NavbarSimple(
             label="Students",
             color="secondary"
         ),
-        # dbc.DropdownMenu(
-        #     children=[
-        #         dbc.DropdownMenuItem("Overview", href="/specialed/overview"),
-        #         dbc.DropdownMenuItem("Trends", href="/specialed/trends"),
-        #         dbc.DropdownMenuItem("Samples", href="/specialed/samples"),
-        #     ],
-        #     nav=True,
-        #     in_navbar=True,
-        #     label="Special Education",
-        #     color="secondary"
-        # ),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Overview", href="/specialed/overview"),
+                #dbc.DropdownMenuItem("Trends", href="/specialed/trends"),
+            ],
+            nav=True,
+            in_navbar=True,
+            label="Special Education",
+            color="secondary"
+        ),
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Overview", href="/teachers/overview"),
