@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 from tabulate import tabulate
-from services.api import get_df_tableenrolx, lookup_dict
+from services.api import get_df_tableenrolx, get_latest_year_with_data, lookup_dict
 
 df_tableenrolx = get_df_tableenrolx()
 
@@ -15,7 +15,8 @@ dash.register_page(__name__, path="/students/overview", name="Students Overview"
 # Filters
 survey_years = lookup_dict.get("surveyYears", [])
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]
-default_year = max([int(item['C']) for item in survey_years], default=2024)
+# Use the latest year that actually has data, not just the max year in the list
+default_year = get_latest_year_with_data(df_tableenrolx)
 
 # ✅ Define Layout inside a Function
 def students_layout():

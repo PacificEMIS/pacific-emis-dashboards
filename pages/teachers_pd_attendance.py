@@ -8,6 +8,7 @@ import plotly.express as px
 # Import the PD data
 from services.api import (
     get_df_teacherpdattendancex,
+    get_latest_year_with_data,
     vocab_district,
     vocab_region,
     vocab_authority,
@@ -25,7 +26,8 @@ dash.register_page(__name__, path="/teacherpd/attendance", name="Teachers PD Att
 survey_years = lookup_dict.get("surveyYears", [])
 
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]
-default_year = max([int(item['C']) for item in survey_years], default=2024)
+# Use the latest year that actually has data, not just the max year in the list
+default_year = get_latest_year_with_data(df_teacherpdattendancex)
 
 # --- Layout ---
 def teachers_pd_attendance_layout():

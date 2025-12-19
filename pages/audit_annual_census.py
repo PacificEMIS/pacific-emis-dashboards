@@ -11,8 +11,9 @@ from dash.dependencies import Input, Output
 
 # Import data and lookup dictionary from the API module
 from services.api import (
+    get_latest_year_with_data,
     vocab_region,
-    lookup_dict,    
+    lookup_dict,
 )
 
 # Import data and lookup dictionary from the direct SQL module
@@ -31,8 +32,8 @@ survey_years = lookup_dict.get("surveyYears", [])
 # Create dropdown options using 'N' for display and 'C' for value
 year_options = [{'label': item['N'], 'value': item['C']} for item in survey_years]
 
-# Determine the default value: the highest available year
-default_year = max([int(item['C']) for item in survey_years], default=2024) 
+# Use the latest year that actually has data, not just the max year in the list
+default_year = get_latest_year_with_data(df_submission) 
 
 # ✅ **Define Layout inside a Function**
 def audit_overview_layout():

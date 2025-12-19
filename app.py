@@ -151,17 +151,16 @@ navbar = dbc.NavbarSimple(
             label="Teacher PD",
             color="secondary"
         ),
-        # dbc.DropdownMenu(
-        #     children=[
-        #         dbc.DropdownMenuItem("Overview", href="/schoolaccreditation/overview"),
-        #         dbc.DropdownMenuItem("Trends", href="/schoolaccreditation/trends"),
-        #         dbc.DropdownMenuItem("Samples", href="/schoolaccreditation/samples"),
-        #     ],
-        #     nav=True,
-        #     in_navbar=True,
-        #     label="Schools Accreditation",
-        #     color="secondary"
-        # ),
+        dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Overview", href="/schoolaccreditation/overview"),
+                #dbc.DropdownMenuItem("Trends", href="/schoolaccreditation/trends"),
+            ],
+            nav=True,
+            in_navbar=True,
+            label="School Accreditation",
+            color="secondary"
+        ),
         # dbc.DropdownMenu(
         #     children=[
         #         dbc.DropdownMenuItem("Overview", href="/wash/overview"),
