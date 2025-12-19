@@ -21,12 +21,14 @@ from config import (
     TEACHERCOUNT_URL,
     TEACHERPD_URL,
     TEACHERPDATTENDANCE_URL,
+    SCHOOLCOUNT_URL,
     LOOKUPS_URL_CACHE_FILE,
     ENROL_URL_CACHE_FILE,
     TABLEENROLX_URL_CACHE_FILE,
     TEACHERCOUNT_URL_CACHE_FILE,
     TEACHERPD_URL_CACHE_FILE,
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
+    SCHOOLCOUNT_URL_CACHE_FILE,
 )
 
 # Global variables
@@ -273,6 +275,9 @@ res_teacherpdattendancex = DataResource(
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
     name="teacherpdattendancex",
 )
+res_schoolcount = DataResource(
+    SCHOOLCOUNT_URL, SCHOOLCOUNT_URL_CACHE_FILE, name="schoolcount"
+)
 
 
 def get_lookup_dict():
@@ -319,6 +324,17 @@ def get_df_teacherpdattendancex():
     return res_teacherpdattendancex.get()
 
 
+def get_df_schoolcount() -> pd.DataFrame:
+    df = res_schoolcount.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure NumSchools is numeric
+        if "NumSchools" in df.columns:
+            df["NumSchools"] = pd.to_numeric(df["NumSchools"], errors="coerce")
+    return df
+
+
 ###############################################################################
 # Background refresh (used by app.py interval)
 ###############################################################################
@@ -334,6 +350,7 @@ def background_refresh_all():
         _ = get_df_teachercount()
         _ = res_teacherpdx.get()
         _ = res_teacherpdattendancex.get()
+        _ = get_df_schoolcount()
     except Exception as e:
         logging.warning(f"Background refresh warning: {e}")
 
