@@ -130,7 +130,7 @@ def specialed_overview_layout():
                         [
                             dbc.Col(
                                 [
-                                    html.H3("Special Education Students by Disability and Gender"),
+                                    html.H5("Special Education Students by Disability and Gender"),
                                     dash_table.DataTable(
                                         id="specialed-disability-table",
                                         style_table={"overflowX": "auto"},
@@ -147,12 +147,16 @@ def specialed_overview_layout():
                                         ],
                                     ),
                                 ],
-                                md=6,
+                                md=12,
                                 className="m-1",
                             ),
+                        ]
+                    ),
+                    dbc.Row(
+                        [
                             dbc.Col(
                                 [
-                                    html.H3("Special Education Students by Environment and Gender"),
+                                    html.H5("Special Education Students by Environment and Gender"),
                                     dash_table.DataTable(
                                         id="specialed-environment-table",
                                         style_table={"overflowX": "auto"},
@@ -169,7 +173,7 @@ def specialed_overview_layout():
                                         ],
                                     ),
                                 ],
-                                md=6,
+                                md=12,
                                 className="m-1",
                             ),
                         ]
@@ -178,7 +182,7 @@ def specialed_overview_layout():
                         [
                             dbc.Col(
                                 [
-                                    html.H3(f"Special Education Students by {vocab_district} and Gender"),
+                                    html.H5(f"Special Education Students by {vocab_district} and Gender"),
                                     dash_table.DataTable(
                                         id="specialed-district-table",
                                         style_table={"overflowX": "auto"},

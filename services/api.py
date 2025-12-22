@@ -24,6 +24,8 @@ from config import (
     SCHOOLCOUNT_URL,
     SPECIALED_URL,
     ACCREDITATION_URL,
+    ACCREDITATION_BYSTANDARD_URL,
+    EXAMS_URL,
     LOOKUPS_URL_CACHE_FILE,
     ENROL_URL_CACHE_FILE,
     TABLEENROLX_URL_CACHE_FILE,
@@ -33,6 +35,8 @@ from config import (
     SCHOOLCOUNT_URL_CACHE_FILE,
     SPECIALED_URL_CACHE_FILE,
     ACCREDITATION_URL_CACHE_FILE,
+    ACCREDITATION_BYSTANDARD_URL_CACHE_FILE,
+    EXAMS_URL_CACHE_FILE,
 )
 
 # Global variables
@@ -288,6 +292,12 @@ res_specialed = DataResource(
 res_accreditation = DataResource(
     ACCREDITATION_URL, ACCREDITATION_URL_CACHE_FILE, name="accreditation"
 )
+res_accreditation_bystandard = DataResource(
+    ACCREDITATION_BYSTANDARD_URL, ACCREDITATION_BYSTANDARD_URL_CACHE_FILE, name="accreditation_bystandard"
+)
+res_exams = DataResource(
+    EXAMS_URL, EXAMS_URL_CACHE_FILE, name="exams"
+)
 
 
 def get_lookup_dict():
@@ -368,6 +378,30 @@ def get_df_accreditation() -> pd.DataFrame:
     return df
 
 
+def get_df_accreditation_bystandard() -> pd.DataFrame:
+    df = res_accreditation_bystandard.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure Num column is numeric
+        if "Num" in df.columns:
+            df["Num"] = pd.to_numeric(df["Num"], errors="coerce")
+        if "NumInYear" in df.columns:
+            df["NumInYear"] = pd.to_numeric(df["NumInYear"], errors="coerce")
+    return df
+
+
+def get_df_exams() -> pd.DataFrame:
+    df = res_exams.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure candidateCount column is numeric
+        if "candidateCount" in df.columns:
+            df["candidateCount"] = pd.to_numeric(df["candidateCount"], errors="coerce")
+    return df
+
+
 ###############################################################################
 # Background refresh (used by app.py interval)
 ###############################################################################
@@ -386,6 +420,8 @@ def background_refresh_all():
         _ = get_df_schoolcount()
         _ = get_df_specialed()
         _ = get_df_accreditation()
+        _ = get_df_accreditation_bystandard()
+        _ = get_df_exams()
     except Exception as e:
         logging.warning(f"Background refresh warning: {e}")
 

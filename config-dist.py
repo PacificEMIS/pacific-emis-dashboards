@@ -23,8 +23,11 @@ TEACHERCOUNT_URL = f"{BASE_URL}/api/warehouse/teachercount/school"
 TEACHERPD_URL = f"{BASE_URL}/api/warehouse/teacherpd/school"
 TEACHERPDATTENDANCE_URL = f"{BASE_URL}/api/warehouse/teacherpdattendance/school"
 
+ACCREDITATION_BYSTANDARD_URL = f"{BASE_URL}/api/warehouse/accreditations/nation?byStandard=true"
+
 # Cache file paths
 LOOKUPS_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_lookups_data.json"
+ACCREDITATION_BYSTANDARD_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_accreditation_bystandard_data.json"
 ENROL_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_enrol_data.json"
 TABLEENROLX_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_tableenrolx_data.json"
 TEACHERCOUNT_URL_CACHE_FILE = f"data\\{CONTEXT}-cached_teachercount_data.json"

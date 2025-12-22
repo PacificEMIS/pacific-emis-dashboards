@@ -81,17 +81,29 @@ def schools_overview_layout():
                 id="schools-overview-content",
                 style={"display": "none"},
                 children=[
-                    # Row 1: District and Region charts
+                    # Row 1: District chart (full width)
                     dbc.Row(
                         [
                             dbc.Col(
                                 dcc.Graph(id="schools-district-chart"),
+                                md=12,
+                                xs=12,
+                                className="p-3",
+                            ),
+                        ],
+                        className="m-1",
+                    ),
+                    # Row 2: Region and School Type charts
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                dcc.Graph(id="schools-region-chart"),
                                 md=6,
                                 xs=12,
                                 className="p-3",
                             ),
                             dbc.Col(
-                                dcc.Graph(id="schools-region-chart"),
+                                dcc.Graph(id="schools-schooltype-chart"),
                                 md=6,
                                 xs=12,
                                 className="p-3",
@@ -99,7 +111,7 @@ def schools_overview_layout():
                         ],
                         className="m-1",
                     ),
-                    # Row 2: Authority Group and Authority charts
+                    # Row 3: Authority Group and Authority charts
                     dbc.Row(
                         [
                             dbc.Col(
@@ -117,24 +129,12 @@ def schools_overview_layout():
                         ],
                         className="m-1",
                     ),
-                    # Row 3: School Type pie chart
-                    dbc.Row(
-                        [
-                            dbc.Col(
-                                dcc.Graph(id="schools-schooltype-chart"),
-                                md=4,
-                                xs=12,
-                                className="p-3",
-                            ),
-                        ],
-                        className="m-1",
-                    ),
                     # Cross-tabulation tables
                     dbc.Row(
                         [
                             dbc.Col(
                                 [
-                                    html.H3(f"Schools by {vocab_district} and {vocab_schooltype}"),
+                                    html.H5(f"Schools by {vocab_district} and {vocab_schooltype}"),
                                     dash_table.DataTable(
                                         id="schools-district-schooltype-table",
                                         merge_duplicate_headers=True,
@@ -161,7 +161,7 @@ def schools_overview_layout():
                         [
                             dbc.Col(
                                 [
-                                    html.H3(
+                                    html.H5(
                                         f"Schools by {vocab_schooltype} and {vocab_authoritygovt}"
                                     ),
                                     dash_table.DataTable(
@@ -304,7 +304,7 @@ def update_schools_dashboard(selected_year, _warehouse_version):
         },
         color_discrete_sequence=px.colors.qualitative.D3,
     )
-    fig_district.update_layout(xaxis_tickangle=45)
+    fig_district.update_layout(xaxis_tickangle=-45)
 
     ###########################################################################
     # Chart 2: Schools by Region (stacked by School Type)
