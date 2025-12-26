@@ -11,18 +11,20 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from config import DEBUG, CONTEXT
+from config import DEBUG, CONTEXT, DASHBOARDS
+
 # 🔄 Background data refresh (ETag-aware)
 from services.api import get_warehouse_version, background_refresh_all
 
 # ✅ Robust server-side background refresher
 import threading, logging
+
 _bg_thread_started = False
 _bg_lock = threading.Lock()
 
 warnings.filterwarnings("ignore", category=urllib3.exceptions.InsecureRequestWarning)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-requests.packages.urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def _start_server_side_refresh():
     global _bg_thread_started
@@ -42,11 +44,8 @@ def _start_server_side_refresh():
         t = threading.Thread(target=_loop, name="bg-refresh", daemon=True)
         t.start()
 
-app = dash.Dash(
-    __name__, 
-    use_pages=True, 
-    external_stylesheets=[dbc.themes.SANDSTONE]    
-)
+
+app = dash.Dash(__name__, use_pages=True, external_stylesheets=[dbc.themes.SANDSTONE])
 app.config.suppress_callback_exceptions = True
 
 server = app.server  # Expose the underlying Flask instance
@@ -54,141 +53,53 @@ server = app.server  # Expose the underlying Flask instance
 # 🔧 Start background thread regardless of reloader quirks
 _start_server_side_refresh()
 
+
 # 🔧 Belt-and-suspenders: start again on first request (no-op if already started)
 @server.before_request
 def _ensure_bg_started():
     _start_server_side_refresh()
 
 
-# Create a Navigation Bar
-navbar = dbc.NavbarSimple(
-    children=[  
-        dbc.NavItem(dbc.NavLink("Home", href="/")),      
-        # dbc.DropdownMenu(
-        #     children=[
-        #         dbc.DropdownMenuItem("Overview", href="/indicators/overview"),
-        #         dbc.DropdownMenuItem("Trends", href="/indicators/trends"),
-        #         dbc.DropdownMenuItem("Samples", href="/indicators/samples"),
-        #     ],
-        #     nav=True,
-        #     in_navbar=True,
-        #     label="Indicators",
-        #     color="secondary"
-        # ),
-        # dbc.DropdownMenu(
-        #     children=[
-        #         dbc.DropdownMenuItem("Overview", href="/budgets/overview"),
-        #         dbc.DropdownMenuItem("Trends", href="/budgets/trends"),
-        #         dbc.DropdownMenuItem("Samples", href="/budget/samples"),
-        #     ],
-        #     nav=True,
-        #     in_navbar=True,
-        #     label="Budgets",
-        #     color="secondary"
-        # ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Exams", href="/exams/exams"),
-                dbc.DropdownMenuItem("Standards", href="/exams/standards"),
-                dbc.DropdownMenuItem("Benchmarks", href="/exams/benchmarks"),
-                dbc.DropdownMenuItem("Indicators", href="/exams/indicators"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Exams",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/schools/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/schools/trends"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Schools",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/students/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/students/trends"),
-                #dbc.DropdownMenuItem("Samples", href="/students/samples"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Students",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/specialed/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/specialed/trends"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Special Education",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/teachers/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/teachers/trends"),
-                #dbc.DropdownMenuItem("Samples", href="/teachers/samples"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Teachers",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/teacherpd/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/teacherpd/trends"),
-                dbc.DropdownMenuItem("Attendants", href="/teacherpd/attendants"),
-                dbc.DropdownMenuItem("Attendance", href="/teacherpd/attendance"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Teacher PD",
-            color="secondary"
-        ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Overview", href="/schoolaccreditation/overview"),
-                #dbc.DropdownMenuItem("Trends", href="/schoolaccreditation/trends"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="School Accreditation",
-            color="secondary"
-        ),
-        # dbc.DropdownMenu(
-        #     children=[
-        #         dbc.DropdownMenuItem("Overview", href="/wash/overview"),
-        #         dbc.DropdownMenuItem("Trends", href="/wash/trends"),
-        #         dbc.DropdownMenuItem("Samples", href="/wash/samples"),
-        #     ],
-        #     nav=True,
-        #     in_navbar=True,
-        #     label="WASH Surveys",
-        #     color="secondary"
-        # ),
-        dbc.DropdownMenu(
-            children=[
-                dbc.DropdownMenuItem("Annual Census", href="/audit/annual-census"),
-                #dbc.DropdownMenuItem("Samples", href="/audit/samples"),
-            ],
-            nav=True,
-            in_navbar=True,
-            label="Audit",
-            color="secondary"
-        ),
-    ],
-    brand=f"{CONTEXT.upper()} Data Portal",
-    brand_href="/",
-    color="rgb(21,101,192)",
-    dark=True,
-)
+def build_navbar():
+    """Build navigation bar dynamically from DASHBOARDS config."""
+    nav_items: list = [dbc.NavItem(dbc.NavLink("Home", href="/"))]
+
+    for section_key, section in DASHBOARDS.items():
+        # Skip disabled sections
+        if not section.get("enabled", False):
+            continue
+
+        # Build menu items for this section
+        menu_items = []
+        for item_key, item in section.get("items", {}).items():
+            if item.get("enabled", False):
+                menu_items.append(
+                    dbc.DropdownMenuItem(item["label"], href=item["path"])
+                )
+
+        # Only add dropdown if there are enabled items
+        if menu_items:
+            nav_items.append(
+                dbc.DropdownMenu(
+                    children=menu_items,
+                    nav=True,
+                    in_navbar=True,
+                    label=section["label"],
+                    color="secondary",
+                )
+            )
+
+    return dbc.NavbarSimple(
+        children=nav_items,
+        brand=f"{CONTEXT.upper()} Data Portal",
+        brand_href="/",
+        color="rgb(21,101,192)",
+        dark=True,
+    )
+
+
+# Create Navigation Bar from config
+navbar = build_navbar()
 
 # Global footer
 footer = dbc.Container(
@@ -210,21 +121,22 @@ footer = dbc.Container(
 )
 
 # Define the app layout with a container for the pages
-app.layout = html.Div([
-    # dcc.Location is optional here, as dash.pages auto-injects it.
-    dcc.Location(id="url", refresh=False),
-    navbar,
-    
-    # 🔄 Global warehouse version pollers (present on every page)
-    dcc.Interval(id="warehouse-version-tick", interval=60*1000, n_intervals=0),
-    dcc.Store(id="warehouse-version-store"),
-    
-    dash.page_container,  # This container will render the current page's layout
-    footer,
-    # 🔄 Background interval + invisible store to carry callback output
-    dcc.Store(id="bg-refresh-state"),
-    dcc.Interval(id="bg-refresh", interval=300_000, n_intervals=0),  # 5 minutes
-])
+app.layout = html.Div(
+    [
+        # dcc.Location is optional here, as dash.pages auto-injects it.
+        dcc.Location(id="url", refresh=False),
+        navbar,
+        # 🔄 Global warehouse version pollers (present on every page)
+        dcc.Interval(id="warehouse-version-tick", interval=60 * 1000, n_intervals=0),
+        dcc.Store(id="warehouse-version-store"),
+        dash.page_container,  # This container will render the current page's layout
+        footer,
+        # 🔄 Background interval + invisible store to carry callback output
+        dcc.Store(id="bg-refresh-state"),
+        dcc.Interval(id="bg-refresh", interval=300_000, n_intervals=0),  # 5 minutes
+    ]
+)
+
 
 @dash.callback(
     Output("warehouse-version-store", "data"),
@@ -253,6 +165,7 @@ def poll_warehouse_version(_n, current):
         print("Version poll error:", e)
         raise PreventUpdate
 
+
 # Format helper
 def _format_last_updated(version_data):
     if not version_data or not version_data.get("datetime"):
@@ -269,6 +182,7 @@ def _format_last_updated(version_data):
     except Exception:
         return f"Last updated data from warehouse: {raw} (raw)"
 
+
 # One global callback
 @app.callback(
     Output("warehouse-last-updated", "children"),
@@ -279,19 +193,19 @@ def _update_footer_label(version_data):
         raise PreventUpdate
     return _format_last_updated(version_data)
 
+
 # Background refresh callback (runs regardless of user navigation)
-@dash.callback(
-    Output("bg-refresh-state", "data"),
-    Input("bg-refresh", "n_intervals")
-)
+@dash.callback(Output("bg-refresh-state", "data"), Input("bg-refresh", "n_intervals"))
 def _background_refresh(_):
     background_refresh_all()
     return {"last": time.time()}
 
+
 # Define chart palettes
 import plotly.express as px
-px.defaults.color_discrete_sequence = px.colors.qualitative.D3
-px.defaults.color_continuous_scale = px.colors.sequential.Cividis
+
+px.defaults.color_discrete_sequence = px.colors.qualitative.D3  # type: ignore[assignment]
+px.defaults.color_continuous_scale = px.colors.sequential.Cividis  # type: ignore[assignment]
 
 
 # 🚀 Run the Dash App
