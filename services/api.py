@@ -21,12 +21,22 @@ from config import (
     TEACHERCOUNT_URL,
     TEACHERPD_URL,
     TEACHERPDATTENDANCE_URL,
+    SCHOOLCOUNT_URL,
+    SPECIALED_URL,
+    ACCREDITATION_URL,
+    ACCREDITATION_BYSTANDARD_URL,
+    EXAMS_URL,
     LOOKUPS_URL_CACHE_FILE,
     ENROL_URL_CACHE_FILE,
     TABLEENROLX_URL_CACHE_FILE,
     TEACHERCOUNT_URL_CACHE_FILE,
     TEACHERPD_URL_CACHE_FILE,
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
+    SCHOOLCOUNT_URL_CACHE_FILE,
+    SPECIALED_URL_CACHE_FILE,
+    ACCREDITATION_URL_CACHE_FILE,
+    ACCREDITATION_BYSTANDARD_URL_CACHE_FILE,
+    EXAMS_URL_CACHE_FILE,
 )
 
 # Global variables
@@ -273,6 +283,21 @@ res_teacherpdattendancex = DataResource(
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
     name="teacherpdattendancex",
 )
+res_schoolcount = DataResource(
+    SCHOOLCOUNT_URL, SCHOOLCOUNT_URL_CACHE_FILE, name="schoolcount"
+)
+res_specialed = DataResource(
+    SPECIALED_URL, SPECIALED_URL_CACHE_FILE, name="specialed"
+)
+res_accreditation = DataResource(
+    ACCREDITATION_URL, ACCREDITATION_URL_CACHE_FILE, name="accreditation"
+)
+res_accreditation_bystandard = DataResource(
+    ACCREDITATION_BYSTANDARD_URL, ACCREDITATION_BYSTANDARD_URL_CACHE_FILE, name="accreditation_bystandard"
+)
+res_exams = DataResource(
+    EXAMS_URL, EXAMS_URL_CACHE_FILE, name="exams"
+)
 
 
 def get_lookup_dict():
@@ -319,6 +344,64 @@ def get_df_teacherpdattendancex():
     return res_teacherpdattendancex.get()
 
 
+def get_df_schoolcount() -> pd.DataFrame:
+    df = res_schoolcount.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure NumSchools is numeric
+        if "NumSchools" in df.columns:
+            df["NumSchools"] = pd.to_numeric(df["NumSchools"], errors="coerce")
+    return df
+
+
+def get_df_specialed() -> pd.DataFrame:
+    df = res_specialed.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure count columns are numeric (M, F for male/female counts)
+        for col in ["M", "F", "Num"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
+def get_df_accreditation() -> pd.DataFrame:
+    df = res_accreditation.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure Num column is numeric
+        if "Num" in df.columns:
+            df["Num"] = pd.to_numeric(df["Num"], errors="coerce")
+    return df
+
+
+def get_df_accreditation_bystandard() -> pd.DataFrame:
+    df = res_accreditation_bystandard.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure Num column is numeric
+        if "Num" in df.columns:
+            df["Num"] = pd.to_numeric(df["Num"], errors="coerce")
+        if "NumInYear" in df.columns:
+            df["NumInYear"] = pd.to_numeric(df["NumInYear"], errors="coerce")
+    return df
+
+
+def get_df_exams() -> pd.DataFrame:
+    df = res_exams.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure candidateCount column is numeric
+        if "candidateCount" in df.columns:
+            df["candidateCount"] = pd.to_numeric(df["candidateCount"], errors="coerce")
+    return df
+
+
 ###############################################################################
 # Background refresh (used by app.py interval)
 ###############################################################################
@@ -334,8 +417,44 @@ def background_refresh_all():
         _ = get_df_teachercount()
         _ = res_teacherpdx.get()
         _ = res_teacherpdattendancex.get()
+        _ = get_df_schoolcount()
+        _ = get_df_specialed()
+        _ = get_df_accreditation()
+        _ = get_df_accreditation_bystandard()
+        _ = get_df_exams()
     except Exception as e:
         logging.warning(f"Background refresh warning: {e}")
+
+
+###############################################################################
+# Helper: get latest year with data
+###############################################################################
+def get_latest_year_with_data(df, year_column="SurveyYear", fallback_year=2024):
+    """
+    Find the most recent year that has data in the given DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to check for data.
+    year_column : str
+        The column name containing year values.
+    fallback_year : int
+        The year to return if no data is found.
+
+    Returns
+    -------
+    int
+        The latest year that has data, or fallback_year if no data exists.
+    """
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return fallback_year
+    if year_column not in df.columns:
+        return fallback_year
+    years = df[year_column].dropna().unique()
+    if len(years) == 0:
+        return fallback_year
+    return int(max(years))
 
 
 ###############################################################################

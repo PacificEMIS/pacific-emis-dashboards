@@ -1,23 +1,28 @@
-import pyodbc
 import pandas as pd
 from pprint import pprint
-import os
+from urllib.parse import quote_plus
+from sqlalchemy import create_engine
 
-from config import (
-    DEBUG, SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD, SQL_DRIVER
-)
+from config import DEBUG, SQL_SERVER, SQL_DATABASE, SQL_USER, SQL_PASSWORD, SQL_DRIVER
 
-# Connection string
-def get_connection():
-    conn_str = f"""
-        DRIVER={{{SQL_DRIVER}}};
-        SERVER={SQL_SERVER};
-        DATABASE={SQL_DATABASE};
-        UID={SQL_USER};
-        PWD={SQL_PASSWORD};
-        TrustServerCertificate=yes;
-    """
-    return pyodbc.connect(conn_str.strip())
+# SQLAlchemy engine (recommended by pandas)
+_engine = None
+
+
+def get_engine():
+    global _engine
+    if _engine is None:
+        conn_str = (
+            f"DRIVER={{{SQL_DRIVER}}};"
+            f"SERVER={SQL_SERVER};"
+            f"DATABASE={SQL_DATABASE};"
+            f"UID={SQL_USER};"
+            f"PWD={SQL_PASSWORD};"
+            f"TrustServerCertificate=yes;"
+        )
+        _engine = create_engine(f"mssql+pyodbc:///?odbc_connect={quote_plus(conn_str)}")
+    return _engine
+
 
 # Core fetch function
 def fetch_survey_submission_data():
@@ -56,9 +61,9 @@ def fetch_survey_submission_data():
     )
     SELECT * FROM BaseData;
     """
-    with get_connection() as conn:
-        df = pd.read_sql(query, conn)
+    df = pd.read_sql(query, get_engine())
     return df
+
 
 ###############################################################################
 # Fetch and store data at startup
