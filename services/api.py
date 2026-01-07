@@ -38,6 +38,7 @@ from config import (
     ACCREDITATION_BYSTANDARD_URL_CACHE_FILE,
     EXAMS_URL_CACHE_FILE,
 )
+from services.connection_status import connection_registry
 
 # Global variables
 df_enrol = pd.DataFrame()
@@ -79,10 +80,23 @@ def get_auth_token():
         )
         if response.status_code == 200:
             token_data = response.json()
+            connection_registry.set_success("API Authentication")
             return token_data.get("access_token"), "✅ Authentication Successful!"
-        else:
+        elif response.status_code == 401:
+            error_msg = f"API authentication failed. Invalid username or password. (URL: {BASE_URL})"
+            connection_registry.set_error("API Authentication", error_msg)
             return None, f"❌ Authentication Failed! Status {response.status_code}"
+        else:
+            error_msg = f"API authentication failed with status {response.status_code}. (URL: {BASE_URL})"
+            connection_registry.set_error("API Authentication", error_msg)
+            return None, f"❌ Authentication Failed! Status {response.status_code}"
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Cannot connect to API server at {BASE_URL}. Please verify the server is accessible."
+        connection_registry.set_error("API Authentication", error_msg)
+        return None, f"❌ Error: {str(e)}"
     except Exception as e:
+        error_msg = f"API connection error: {str(e)[:200]}"
+        connection_registry.set_error("API Authentication", error_msg)
         return None, f"❌ Error: {str(e)}"
 
 
@@ -187,10 +201,12 @@ def fetch_data(url, is_lookup=False, cache_file=None):
                 except Exception as e:
                     logging.warning(f"Cache write warning: {e}")
             data_status = "✅ Data retrieved successfully!"
+            connection_registry.set_success("API Data")
             return data if is_lookup else pd.DataFrame(data)
         except ValueError as e:
             logging.error(f"JSON Parsing Error: {e}")
             data_status = "❌ JSON Parsing Error!"
+            connection_registry.set_error("API Data", f"JSON parsing error from {url}")
             return {} if is_lookup else pd.DataFrame()
 
     # ⚠️ If fetch failed but cache exists, load stale data
@@ -199,12 +215,16 @@ def fetch_data(url, is_lookup=False, cache_file=None):
             with open(cache_file, "r", encoding="utf-8") as f:
                 cached_data = json.load(f)
             data_status = f"⚠️ {response.status_code} from server — loaded stale cache"
+            # Don't mark as error if we have cached data - it's degraded but working
             return cached_data if is_lookup else pd.DataFrame(cached_data)
         except Exception as e:
             logging.error(f"Fallback cache read error: {e}")
 
     # ❌ No usable data
     data_status = f"❌ Data fetch failed! {response.status_code}"
+    connection_registry.set_error(
+        "API Data", f"API data fetch failed with status {response.status_code}. (URL: {url})"
+    )
     return {} if is_lookup else pd.DataFrame()
 
 
