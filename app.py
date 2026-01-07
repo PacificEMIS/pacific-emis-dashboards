@@ -45,7 +45,14 @@ def _start_server_side_refresh():
         t.start()
 
 
-app = dash.Dash(__name__, use_pages=True, external_stylesheets=[dbc.themes.SANDSTONE])
+app = dash.Dash(
+    __name__,
+    use_pages=True,
+    external_stylesheets=[
+        dbc.themes.SANDSTONE,
+        dbc.icons.BOOTSTRAP,  # Bootstrap Icons for connection status alerts
+    ],
+)
 app.config.suppress_callback_exceptions = True
 
 server = app.server  # Expose the underlying Flask instance
