@@ -2,6 +2,10 @@ import os
 
 DEBUG = True
 
+# Deployment mode: use environment variable `EMIS_MODE` to override.
+# Accepted values: "Production" (default) or "Testing"
+MODE = os.getenv("EMIS_MODE", "Production")
+
 # Credentials
 # It’s a good idea to also allow environment variable overrides.
 USERNAME = os.getenv("EMIS_USERNAME", "user@pacific-emis.org")

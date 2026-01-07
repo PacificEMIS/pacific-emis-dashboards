@@ -11,7 +11,7 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
-from config import DEBUG, CONTEXT, DASHBOARDS
+from config import DEBUG, CONTEXT, DASHBOARDS, MODE
 
 # 🔄 Background data refresh (ETag-aware)
 from services.api import get_warehouse_version, background_refresh_all
@@ -91,7 +91,10 @@ def build_navbar():
 
     return dbc.NavbarSimple(
         children=nav_items,
-        brand=f"{CONTEXT.upper()} Data Portal",
+        brand=(
+            f"{CONTEXT.upper()} Data Portal"
+            + (" (Testing Site)" if str(MODE).lower() == "testing" else "")
+        ),
         brand_href="/",
         color="rgb(21,101,192)",
         dark=True,
