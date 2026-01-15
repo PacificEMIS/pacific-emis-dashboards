@@ -1,5 +1,18 @@
 import numpy as np
 import math
+from config import DASHBOARDS
+
+
+def get_page_note(path):
+    """
+    Look up the note for a given page path from DASHBOARDS config.
+    Returns the note string if found, or None if no note is configured.
+    """
+    for section in DASHBOARDS.values():
+        for item in section.get("items", {}).values():
+            if item.get("path") == path:
+                return item.get("note")
+    return None
 
 def calculate_center(coords):
     """Calculate geographic center properly across 180 meridian."""
