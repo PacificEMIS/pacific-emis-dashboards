@@ -19,6 +19,7 @@ from config import (
     ENROL_URL,
     TABLEENROLX_URL,
     TEACHERCOUNT_URL,
+    TEACHEREDLEVEL_URL,
     TEACHERPD_URL,
     TEACHERPDATTENDANCE_URL,
     SCHOOLCOUNT_URL,
@@ -30,6 +31,7 @@ from config import (
     ENROL_URL_CACHE_FILE,
     TABLEENROLX_URL_CACHE_FILE,
     TEACHERCOUNT_URL_CACHE_FILE,
+    TEACHEREDLEVEL_URL_CACHE_FILE,
     TEACHERPD_URL_CACHE_FILE,
     TEACHERPDATTENDANCE_URL_CACHE_FILE,
     SCHOOLCOUNT_URL_CACHE_FILE,
@@ -295,6 +297,9 @@ res_tableenrolx = DataResource(
 res_teachercount = DataResource(
     TEACHERCOUNT_URL, TEACHERCOUNT_URL_CACHE_FILE, name="teachercount"
 )
+res_teacheredlevel = DataResource(
+    TEACHEREDLEVEL_URL, TEACHEREDLEVEL_URL_CACHE_FILE, name="teacheredlevel"
+)
 res_teacherpdx = DataResource(
     TEACHERPD_URL, TEACHERPD_URL_CACHE_FILE, name="teacherpdx"
 )
@@ -353,6 +358,35 @@ def get_df_teachercount() -> pd.DataFrame:
             ]
             if cols:
                 df["TotalTeachers"] = df[cols].fillna(0).sum(axis=1)
+    return df
+
+
+def get_df_teacheredlevel() -> pd.DataFrame:
+    df = res_teacheredlevel.get()
+    if not isinstance(df, pd.DataFrame):
+        return pd.DataFrame()
+    if not df.empty:
+        # Ensure teacher count columns are numeric
+        for col in [
+            "NumTeachersM", "NumTeachersF", "NumTeachersNA",
+            "CertifiedM", "CertifiedF", "CertifiedNA",
+            "QualifiedM", "QualifiedF", "QualifiedNA",
+            "QualCertM", "QualCertF", "QualCertNA",
+        ]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+        # Create a total teacher count column
+        if "TotalTeachers" not in df.columns:
+            cols = [
+                c
+                for c in ["NumTeachersM", "NumTeachersF", "NumTeachersNA"]
+                if c in df.columns
+            ]
+            if cols:
+                df["TotalTeachers"] = df[cols].fillna(0).sum(axis=1)
+        # Filter to teaching and management staff only (exclude Admin/Other)
+        if "TAMX" in df.columns:
+            df = df[df["TAMX"].isin(["T", "M"])].copy()
     return df
 
 
@@ -435,6 +469,7 @@ def background_refresh_all():
         _ = res_enrol.get()
         _ = res_tableenrolx.get()
         _ = get_df_teachercount()
+        _ = get_df_teacheredlevel()
         _ = res_teacherpdx.get()
         _ = res_teacherpdattendancex.get()
         _ = get_df_schoolcount()
